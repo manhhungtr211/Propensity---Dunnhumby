@@ -1,28 +1,20 @@
 from __future__ import annotations
 
+from pathlib import Path
+from typing import Final
+
 import polars as pl
 import pytest
 
-from src.config import RAW_DATA_DIR
-from src.schema import ColumnRole, DatasetSpec, DatasetSpecError
+from propensity.io import scan_csv
+from propensity.schema import DatasetSpec, DatasetSpecError
+from propensity.schema.dunnhumby import TRANSACTION_SPEC
+
+RAW_DATA_DIR: Final = Path(__file__).resolve().parents[1] / "data" / "raw"
 
 
 def _transaction_spec() -> DatasetSpec:
-    return DatasetSpec(
-        name="transaction",
-        entity_col="household_key",
-        time_col="DAY",
-        required_cols=(
-            "BASKET_ID",
-            "PRODUCT_ID",
-            "QUANTITY",
-            "SALES_VALUE",
-        ),
-        role_overrides={
-            "BASKET_ID": ColumnRole.ID,
-            "PRODUCT_ID": ColumnRole.ID,
-        },
-    )
+    return TRANSACTION_SPEC
 
 
 def _valid_transaction_frame(*, sales_value: float = 1.39) -> pl.DataFrame:
@@ -54,12 +46,14 @@ def test_ac1_dataset_spec_describes_transaction_contract() -> None:
     assert spec.name == "transaction"
     assert spec.entity_col == "household_key"
     assert spec.time_col == "DAY"
+    assert spec.time_grain == "day_index"
+    assert spec.grain_cols == ("BASKET_ID", "PRODUCT_ID")
 
 
 def test_ac2_real_transaction_csv_passes_validation() -> None:
     # Given
     transaction_path = RAW_DATA_DIR / "Dunnhumby" / "transaction_data.csv"
-    transactions = pl.scan_csv(transaction_path)
+    transactions = scan_csv(transaction_path)
 
     # When
     spec = _transaction_spec()
