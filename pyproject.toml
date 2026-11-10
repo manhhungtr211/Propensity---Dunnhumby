@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "propensity"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = ["matplotlib>=3.8", "pandas>=2.0", "numpy", "openpyxl", "polars"]
+
+[project.optional-dependencies]
+dev = ["pytest", "ruff"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

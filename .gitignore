@@ -1,0 +1,51 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Caches & tooling
+.pytest_cache/
+.ruff_cache/
+.uv-cache/
+.artifacts/
+tmp/
+output/
+
+# Distribution / packaging
+*.egg-info/
+dist/
+build/
+
+# Virtual Environments
+.venv/
+venv/
+env/
+ENV/
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# Environment variables & secrets
+.env
+*.env
+
+# Operating System
+.DS_Store
+Thumbs.db
+
+# Large data files (CSV, Parquet, Excel, Archives)
+*.csv
+*.parquet
+*.feather
+*.h5
+*.pkl
+*.pickle
+*.xlsx
+*.zip
+*.tar.gz
+*.gz
+
+# Raw data directory content (except exploration notebooks)
+data/raw/*/*
+!data/raw/*/raw.ipynb
+
