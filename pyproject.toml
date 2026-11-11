@@ -6,10 +6,12 @@ build-backend = "setuptools.build_meta"
 name = "propensity"
 version = "0.1.0"
 requires-python = ">=3.11"
-dependencies = ["matplotlib>=3.8", "pandas>=2.0", "numpy", "openpyxl", "polars"]
+dependencies = ["polars"]
 
 [project.optional-dependencies]
-dev = ["pytest", "ruff"]
+viz = ["matplotlib>=3.8", "numpy"]
+excel = ["openpyxl"]
+dev = ["build", "pytest", "ruff"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

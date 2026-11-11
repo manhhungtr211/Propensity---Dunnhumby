@@ -1,0 +1,403 @@
+\documentclass[aspectratio=169,11pt]{beamer}
+\usepackage[utf8]{inputenc}
+\usepackage[T5]{fontenc}
+\usepackage[vietnamese]{babel}
+\usepackage{lmodern}
+\usepackage{graphicx}
+\usepackage{booktabs,tabularx,array}
+\usepackage{tikz}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\usetikzlibrary{positioning,arrows.meta,calc}
+\usetheme{Madrid}
+\usecolortheme{spruce}
+\setbeamertemplate{navigation symbols}{}
+\setbeamertemplate{section in toc}[sections numbered]
+\setbeamercolor{section in toc}{fg=red!70!black}
+\setbeamercolor{subsection in toc}{fg=blue!70!white}
+\setbeamercolor{section number projected}{bg=orange,fg=white}
+\date{Tháng 11, 2026}
+\author{Nhóm Propensity VSF}
+\institute{EDA dữ liệu Dunnhumby}
+\title{Hiểu dữ liệu giao dịch Dunnhumby}
+\subtitle{Cấu trúc bảng, raw feature và tín hiệu hành vi}
+\titlegraphic{\IfFileExists{fit-logo.jpg}{\includegraphics[width=3.2cm]{fit-logo.jpg}}{}}
+\setbeamertemplate{title page}{%
+\centering\vspace{0.5cm}\inserttitlegraphic\par\vspace{0.25cm}
+\begin{beamercolorbox}[sep=8pt,center,rounded=true,shadow=true]{title}\usebeamerfont{title}\textbf{\inserttitle}\par\end{beamercolorbox}
+\vspace{0.25cm}{\usebeamerfont{subtitle}\insertsubtitle\par}\vspace{0.35cm}
+\begin{beamercolorbox}[sep=5pt,center]{author}\insertauthor\end{beamercolorbox}
+\begin{beamercolorbox}[sep=5pt,center]{institute}\insertinstitute\end{beamercolorbox}
+\vspace{0.25cm}{\small\insertdate\par}}
+\newcommand{\src}[1]{\par\vfill{\tiny\color{gray}Nguồn: #1}}
+\newcommand{\stat}[2]{{\Large\bfseries\color{structure.fg}#1}\quad {\small #2}\par\medskip}
+\newcommand{\code}[1]{\texttt{\detokenize{#1}}}
+\newcolumntype{Y}{>{\raggedright\arraybackslash}X}
+\newcolumntype{C}[1]{>{\centering\arraybackslash}p{#1}}
+
+\begin{document}
+
+\begin{frame}[plain]\titlepage\end{frame}
+
+\begin{frame}{Mục lục}
+\tableofcontents
+\end{frame}
+
+\section{Bảng giao dịch đang chứa dữ liệu gì}
+
+\begin{frame}{Bảng transaction ghi nhận product line trong basket}
+\begin{columns}[T]
+\column{.47\textwidth}
+\stat{2.595.732}{product lines}
+\stat{276.484}{baskets}
+\stat{2.500}{households}
+\stat{711}{ngày quan sát}
+\column{.49\textwidth}
+\textbf{Một dòng mô tả}
+\begin{itemize}
+\item Một sản phẩm trong một basket mua hàng.
+\item Household, cửa hàng và thời điểm gắn với basket.
+\item Số lượng, doanh số và ba khoản discount gắn với product line.
+\end{itemize}
+\medskip
+\textbf{Phạm vi}
+\begin{itemize}
+\item 92.339 sản phẩm và 582 cửa hàng.
+\item 102 tuần, tương đương khoảng 23 tháng lịch sử tương đối.
+\item Không có null trong 12 raw columns.
+\end{itemize}
+\end{columns}
+\src{Tính trực tiếp từ data/raw/Dunnhumby/transaction\_data.csv.}
+\end{frame}
+
+\begin{frame}{Grain được xác nhận bằng dữ liệu}
+\begin{columns}[T]
+\column{.54\textwidth}
+\centering
+\begin{tikzpicture}[
+node distance=8mm,
+box/.style={draw=structure.fg,rounded corners,fill=green!8,align=center,minimum width=3.5cm,minimum height=.8cm},
+line/.style={-{Latex[length=2mm]},thick,draw=structure.fg}]
+\node[box] (hh) {\code{household_key}\\entity};
+\node[box,below=of hh] (basket) {\code{BASKET_ID}\\basket event};
+\node[box,below=of basket] (line) {\code{BASKET_ID + PRODUCT_ID}\\unique product line};
+\draw[line] (hh)--node[right,font=\scriptsize]{1:N baskets}(basket);
+\draw[line] (basket)--node[right,font=\scriptsize]{1:N product lines}(line);
+\end{tikzpicture}
+\column{.42\textwidth}
+\textbf{Kiểm chứng}
+\begin{itemize}
+\item 2.595.732 cặp \code{BASKET_ID + PRODUCT_ID} khác nhau.
+\item Không có cặp grain trùng.
+\item Một basket chỉ thuộc một household, một ngày, một store và một thời điểm.
+\item Median 5 product lines mỗi basket, p90 là 24.
+\end{itemize}
+\medskip
+\alert{Kết luận:} grain phù hợp để tổng hợp lên basket, ngày và household mà không nhập nhằng khóa.
+\end{columns}
+\src{Group-by và uniqueness checks trên transaction\_data.csv.}
+\end{frame}
+
+\begin{frame}{DAY là chỉ số ngày tương đối, không phải ngày lịch}
+\begin{columns}[T]
+\column{.55\textwidth}
+\centering
+\begin{tikzpicture}[x=.82cm,y=1cm]
+\fill[green!18] (0,0) rectangle (5,1);
+\fill[orange!25] (5,0) rectangle (12,1);
+\draw[thick] (5,-.15)--(5,1.15);
+\node[align=center] at (2.5,.5){\textbf{WEEK\_NO = 1}\\DAY 1--5};
+\node[align=center] at (8.5,.5){\textbf{WEEK\_NO = 2}\\DAY 6--12};
+\node[below,font=\scriptsize] at (0,0){DAY 1};
+\node[below,font=\scriptsize] at (12,0){DAY 12};
+\end{tikzpicture}
+\vspace{.45cm}
+\[
+\texttt{WEEK\_NO}=\left\lfloor\frac{\texttt{DAY}+1}{7}\right\rfloor+1
+\]
+\column{.41\textwidth}
+\textbf{Điều dữ liệu xác nhận}
+\begin{itemize}
+\item DAY chạy liên tục từ 1 đến 711.
+\item WEEK\_NO chạy liên tục từ 1 đến 102.
+\item Công thức trên khớp toàn bộ 2.595.732 dòng.
+\item Tuần đầu chỉ có 5 ngày vì calendar week bắt đầu trước DAY 1.
+\end{itemize}
+\medskip
+\alert{Còn thiếu:} mốc ngày lịch tương ứng với DAY 1.
+\end{columns}
+\src{Quan sát ánh xạ DAY--WEEK\_NO trong transaction\_data.csv.}
+\end{frame}
+
+\begin{frame}{Transaction là bảng sự kiện trung tâm}
+\centering
+\begin{tikzpicture}[
+node distance=7mm and 14mm,
+box/.style={draw=structure.fg,rounded corners,fill=green!7,align=center,minimum width=3.1cm,minimum height=.7cm},
+core/.style={draw=orange!80!black,very thick,rounded corners,fill=orange!12,align=center,minimum width=3.5cm,minimum height=1cm},
+line/.style={-{Latex[length=2mm]},thick}]
+\node[core] (t) {\code{transaction_data}\\product-line events};
+\node[box,above left=of t] (p) {\code{product}\\PRODUCT\_ID};
+\node[box,above right=of t] (h) {\code{hh_demographic}\\household\_key};
+\node[box,left=of t] (c) {\code{causal_data}\\PRODUCT\_ID, STORE\_ID, WEEK\_NO};
+\node[box,right=of t] (ct) {\code{campaign_table}\\household\_key};
+\node[box,below left=of t] (cp) {\code{coupon}\\PRODUCT\_ID};
+\node[box,below right=of t] (cr) {\code{coupon_redempt}\\household\_key, DAY};
+\draw[line] (t)--(p); \draw[line] (t)--(h); \draw[line] (t)--(c);
+\draw[line] (t)--(ct); \draw[line] (t)--(cp); \draw[line] (t)--(cr);
+\end{tikzpicture}
+\vspace{.25cm}
+\begin{columns}[T]
+\column{.48\textwidth}\small
+Toàn bộ 92.339 PRODUCT\_ID phát sinh giao dịch đều có trong product master.
+\column{.48\textwidth}\small
+Demographic chỉ phủ 801/2.500 households, nên phải giữ nhóm ``unknown demographic''.
+\end{columns}
+\src{Schema và key coverage của các CSV trong data/raw/Dunnhumby.}
+\end{frame}
+
+\section{Từng raw feature là gì}
+
+\begin{frame}{Mười hai cột tạo thành bốn nhóm feature}
+\small
+\begin{tabularx}{\textwidth}{@{}p{2.5cm}Y Y@{}}
+\toprule
+\textbf{Nhóm} & \textbf{Raw columns} & \textbf{Vai trò trong phân tích} \\
+\midrule
+Entity và key & \code{household_key}, \code{BASKET_ID}, \code{PRODUCT_ID}, \code{STORE_ID} & Nhóm dữ liệu theo khách hàng, basket, sản phẩm và điểm bán \\
+\addlinespace
+Temporal & \code{DAY}, \code{WEEK_NO}, \code{TRANS_TIME} & Xác định thứ tự giao dịch, recency, cadence và khung giờ \\
+\addlinespace
+Purchase measures & \code{QUANTITY}, \code{SALES_VALUE} & Đo lượng mua và giá trị mua \\
+\addlinespace
+Promotion measures & \code{RETAIL_DISC}, \code{COUPON_DISC}, \code{COUPON_MATCH_DISC} & Đo mức giảm giá và phản ứng với coupon \\
+\bottomrule
+\end{tabularx}
+\medskip
+\begin{block}{Nguyên tắc}
+Raw column cung cấp bằng chứng. Feature mô hình phải được tổng hợp trong observation window và chỉ dùng thông tin có trước snapshot.
+\end{block}
+\src{Feature catalog của notebook 01 và transaction schema.}
+\end{frame}
+
+\begin{frame}{Entity và key features}
+\scriptsize
+\begin{tabularx}{\textwidth}{@{}p{2.2cm}p{1.5cm}p{1.8cm}Y Y@{}}
+\toprule
+\textbf{Cột} & \textbf{Role} & \textbf{Cardinality} & \textbf{Nghĩa nghiệp vụ} & \textbf{Tín hiệu có thể tạo} \\
+\midrule
+\code{household_key} & Entity ID & 2.500 & Mã household ẩn danh & Khóa tạo lịch sử, RFM và nhãn propensity \\
+\addlinespace
+\code{BASKET_ID} & Event ID & 276.484 & Mã basket mua hàng & Frequency, basket size, basket value \\
+\addlinespace
+\code{PRODUCT_ID} & Product ID & 92.339 & Mã sản phẩm trên product line & Preference khi join product taxonomy \\
+\addlinespace
+\code{STORE_ID} & Store ID & 582 & Mã cửa hàng phát sinh basket & Store affinity, diversity và channel proxy \\
+\bottomrule
+\end{tabularx}
+\medskip
+\begin{columns}[T]
+\column{.48\textwidth}
+\textbf{Household lặp lại đủ dài}
+\begin{itemize}\scriptsize
+\item Median 79 baskets và 70 active days.
+\item Median span 627 ngày.
+\item 2.461/2.500 households có span ít nhất 365 ngày.
+\end{itemize}
+\column{.48\textwidth}
+\textbf{Lưu ý mô hình}
+\begin{itemize}\scriptsize
+\item Không scale ID như biến số.
+\item PRODUCT\_ID và STORE\_ID cần aggregate hoặc encode theo lịch sử.
+\item Chia train/test theo thời gian, không random theo dòng.
+\end{itemize}
+\end{columns}
+\src{Cardinality và household-level aggregation từ transaction\_data.csv.}
+\end{frame}
+
+\begin{frame}{QUANTITY và SALES\_VALUE đo hành vi mua}
+\begin{columns}[T]
+\column{.48\textwidth}
+\textbf{QUANTITY}
+\begin{itemize}
+\item Median = 1, p99 = 10.
+\item 14.466 dòng bằng 0, chiếm 0,56\%.
+\item Max = 89.638 và skewness = 13,64.
+\item Đơn vị chưa được data dictionary cục bộ xác nhận.
+\end{itemize}
+\medskip
+\textbf{Tín hiệu:} số lượng mua, bulk buying, basket units, category volume.
+\column{.48\textwidth}
+\textbf{SALES\_VALUE}
+\begin{itemize}
+\item Median = 2, p99 = 20.
+\item 18.850 dòng bằng 0, chiếm 0,73\%.
+\item Max = 840 và skewness = 15,91.
+\item Tổng quan sát = 8,06 triệu đơn vị tiền tệ.
+\end{itemize}
+\medskip
+\textbf{Tín hiệu:} monetary value, average basket value, spend trend.
+\end{columns}
+\begin{alertblock}{Điểm cần chốt}
+IQR của QUANTITY bằng 0 vì Q1 = median = Q3 = 1. Không nên tự động loại mọi giá trị khác 1 như outlier.
+\end{alertblock}
+\src{Numeric profile trên 2.595.732 product lines.}
+\end{frame}
+
+\begin{frame}{Ba discount columns đo các cơ chế khuyến mãi khác nhau}
+\scriptsize
+\begin{tabularx}{\textwidth}{@{}p{2.4cm}C{1.4cm}C{1.4cm}C{1.4cm}Y@{}}
+\toprule
+\textbf{Cột} & \textbf{Min} & \textbf{Zero rate} & \textbf{Dòng âm} & \textbf{Tín hiệu hành vi} \\
+\midrule
+\code{RETAIL_DISC} & -180 & 49,80\% & 1.303.026 & Mức phụ thuộc vào giảm giá tại quầy, tỷ trọng chi tiêu có markdown \\
+\addlinespace
+\code{COUPON_DISC} & -55,93 & 98,60\% & 36.422 & Tần suất và giá trị sử dụng coupon \\
+\addlinespace
+\code{COUPON_MATCH_DISC} & -7,70 & 99,33\% & 17.449 & Phản ứng với chương trình match coupon \\
+\bottomrule
+\end{tabularx}
+\medskip
+\begin{columns}[T]
+\column{.48\textwidth}
+\textbf{Cách đọc}
+\begin{itemize}\scriptsize
+\item Giá trị âm nhiều khả năng là khoản giảm trừ khỏi sales.
+\item Coupon columns zero-inflated vì phần lớn product lines không dùng coupon.
+\end{itemize}
+\column{.48\textwidth}
+\textbf{Cần xác nhận}
+\begin{itemize}\scriptsize
+\item Đơn vị tiền tệ và quy ước dấu.
+\item 36 dòng RETAIL\_DISC dương.
+\item SALES\_VALUE đã là net hay gross sales.
+\end{itemize}
+\end{columns}
+\src{Domain và numeric profiles từ transaction\_data.csv.}
+\end{frame}
+
+\begin{frame}{Ba biến thời gian phục vụ ba câu hỏi khác nhau}
+\small
+\begin{tabularx}{\textwidth}{@{}p{2.2cm}p{2.2cm}p{2.7cm}Y@{}}
+\toprule
+\textbf{Cột} & \textbf{Encoding} & \textbf{Miền quan sát} & \textbf{Tín hiệu có thể tạo} \\
+\midrule
+\code{DAY} & Ordinal day index & 1--711, đủ 711 ngày & Recency, active days, interpurchase gap, tenure \\
+\addlinespace
+\code{WEEK_NO} & Ordinal week index & 1--102, đủ 102 tuần & Weekly cadence, seasonality, rolling windows \\
+\addlinespace
+\code{TRANS_TIME} & Integer HHMM & 0000--2359, đủ 1.440 phút & Morning/evening affinity, shopping-time regularity \\
+\bottomrule
+\end{tabularx}
+\medskip
+\begin{block}{Vì sao TRANS\_TIME cần route riêng}
+0930 và 1000 cách nhau 30 phút, không phải 70 đơn vị. Clock-time phải được parse thành phút trong ngày trước khi tính khoảng cách hoặc cyclic encoding.
+\end{block}
+\src{Temporal profile và kiểm tra HHMM từ transaction\_data.csv.}
+\end{frame}
+
+\begin{frame}{Các điểm dữ liệu cần xử lý bằng business rule}
+\begin{columns}[T]
+\column{.48\textwidth}
+\textbf{Đã xác nhận}
+\begin{itemize}
+\item Không có null ở 12 cột.
+\item Không có grain duplicate.
+\item DAY và WEEK\_NO liên tục 100\%.
+\item Không có HHMM bất khả thi.
+\item Tất cả PRODUCT\_ID giao dịch join được product master.
+\end{itemize}
+\column{.48\textwidth}
+\textbf{Chưa nên tự động sửa}
+\begin{itemize}
+\item QUANTITY max 89.638 và 14.466 dòng bằng 0.
+\item SALES\_VALUE max 840 và 18.850 dòng bằng 0.
+\item 36 RETAIL\_DISC dương.
+\item Coupon discount có IQR bằng 0 nhưng giá trị âm mang ý nghĩa giao dịch.
+\item Currency và đơn vị QUANTITY chưa được xác nhận.
+\end{itemize}
+\end{columns}
+\medskip
+\alert{Nguyên tắc:} ghi nhận extreme trước, chỉ làm sạch sau khi xác nhận ý nghĩa nghiệp vụ.
+\src{Schema validation, domain checks và distribution profiles.}
+\end{frame}
+
+\section{Raw data có thể tạo tín hiệu propensity nào}
+
+\begin{frame}{Transaction hỗ trợ RFM, preference và promo sensitivity}
+\small
+\begin{tabularx}{\textwidth}{@{}p{2.5cm}p{3.2cm}Y@{}}
+\toprule
+\textbf{Tín hiệu} & \textbf{Raw columns} & \textbf{Feature theo household tại snapshot $t$} \\
+\midrule
+Recency & \code{DAY}, \code{household_key} & $t-\max(DAY)$, số ngày từ lần mua gần nhất \\
+\addlinespace
+Frequency & \code{BASKET_ID}, \code{DAY} & Số basket, active days, median interpurchase gap trong observation window \\
+\addlinespace
+Monetary & \code{SALES_VALUE} & Tổng chi tiêu, average basket value, spend trend \\
+\addlinespace
+Preference & \code{PRODUCT_ID} + product taxonomy & Tỷ trọng chi tiêu theo department, commodity và brand \\
+\addlinespace
+Promo sensitivity & Ba discount columns & Discount share, coupon-use rate, spend khi có và không có promotion \\
+\addlinespace
+Routine & \code{STORE_ID}, \code{TRANS_TIME} & Store concentration, shopping-hour entropy, regularity \\
+\bottomrule
+\end{tabularx}
+\src{Suy luận feature engineering từ grain và semantic role của raw columns.}
+\end{frame}
+
+\begin{frame}{Lịch sử đủ dài cho time-window propensity}
+\begin{columns}[T]
+\column{.57\textwidth}
+\centering
+\begin{tikzpicture}[x=.68cm,y=1cm]
+\fill[blue!18] (0,0) rectangle (10,1);
+\fill[orange!35] (10,0) rectangle (12.5,1);
+\draw[thick] (10,-.2)--(10,1.2);
+\node[align=center] at (5,.5){\textbf{Observation window}\\12 tháng};
+\node[align=center] at (11.25,.5){\textbf{Prediction}\\30 ngày};
+\node[below,font=\scriptsize] at (0,0){$t-365$};
+\node[below,font=\scriptsize] at (10,0){Snapshot $t$};
+\node[below,font=\scriptsize] at (12.5,0){$t+30$};
+\end{tikzpicture}
+\column{.39\textwidth}
+\textbf{Bằng chứng khả dụng}
+\begin{itemize}
+\item Median household span: 627 ngày.
+\item 2.461/2.500 households có span ít nhất 365 ngày.
+\item Median 79 baskets và 70 active days.
+\end{itemize}
+\end{columns}
+\medskip
+\begin{alertblock}{Kiểm soát leakage}
+Feature chỉ dùng giao dịch có DAY $\leq t$. Nhãn phải nằm hoàn toàn sau snapshot. Split train, validation và test theo DAY.
+\end{alertblock}
+\src{Household-level aggregation và nguyên tắc time-window modeling.}
+\end{frame}
+
+\begin{frame}{Kết luận và câu hỏi cần chốt}
+\begin{columns}[T]
+\column{.48\textwidth}
+\textbf{Transaction phù hợp làm bảng fact}
+\begin{itemize}
+\item Grain rõ và unique.
+\item Household lặp lại qua thời gian dài.
+\item Đủ key để nối product, promotion và demographic.
+\item Raw columns hỗ trợ RFM, preference và promo sensitivity.
+\end{itemize}
+\column{.48\textwidth}
+\textbf{Bốn câu hỏi trước khi làm sạch}
+\begin{enumerate}
+\item DAY 1 tương ứng ngày lịch nào?
+\item QUANTITY dùng đơn vị gì?
+\item Currency và quy ước dấu discount là gì?
+\item Zero quantity hoặc zero sales mang nghĩa nghiệp vụ gì?
+\end{enumerate}
+\end{columns}
+\medskip
+\centering
+\color{structure.fg}\bfseries Bước tiếp theo: join product taxonomy để giải thích preference signals.
+\src{Tổng hợp EDA transaction\_data.csv.}
+\end{frame}
+
+\end{document}

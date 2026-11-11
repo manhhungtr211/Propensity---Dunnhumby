@@ -2,13 +2,21 @@
 
 from __future__ import annotations
 
-from typing import TypedDict
+from typing import Final, TypedDict, assert_never
 
 import polars as pl
 
 from propensity.config import DEFAULT_NA_TOKENS
 from propensity.eda._expressions import missing_condition
+from propensity.eda.profiling.clock import valid_clock_expr
+from propensity.schema import AnalysisKind
 from propensity.schema.spec import DatasetSpec
+
+VALUE_QUALITY_COLUMNS: Final = (
+    "column",
+    "sentinel_values_found",
+    "impossible_values_found",
+)
 
 
 class QualityReport(TypedDict):
@@ -109,3 +117,48 @@ def describe_quality(
         ].to_list(),
         "column_quality": column_quality,
     }
+
+
+def inspect_value_quality(
+    lf: pl.LazyFrame,
+    catalog: pl.DataFrame,
+) -> pl.DataFrame:
+    """Report configured sentinels and values that violate semantic domains."""
+    rows: list[tuple[str, list[str], list[str]]] = []
+    for row in catalog.select("column", "analysis_kind").iter_rows(named=True):
+        column = str(row["column"])
+        analysis_kind = AnalysisKind(row["analysis_kind"])
+        match analysis_kind:
+            case AnalysisKind.CLOCK_TIME:
+                invalid = (
+                    lf.select(
+                        pl.col(column)
+                        .drop_nulls()
+                        .filter(~valid_clock_expr(column))
+                        .unique()
+                        .sort()
+                    )
+                    .collect()[column]
+                    .to_list()
+                )
+                impossible = [str(value) for value in invalid]
+            case (
+                AnalysisKind.IDENTIFIER
+                | AnalysisKind.NUMERIC
+                | AnalysisKind.CATEGORICAL
+                | AnalysisKind.DATETIME
+                | AnalysisKind.ORDINAL_TIME
+            ):
+                impossible = []
+            case unreachable:
+                assert_never(unreachable)
+        rows.append((column, [], impossible))
+    return pl.DataFrame(
+        rows,
+        schema={
+            "column": pl.String,
+            "sentinel_values_found": pl.List(pl.String),
+            "impossible_values_found": pl.List(pl.String),
+        },
+        orient="row",
+    ).select(VALUE_QUALITY_COLUMNS)

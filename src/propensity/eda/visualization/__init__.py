@@ -11,6 +11,7 @@ from propensity.eda.visualization.plots import (
     plot_records_over_time,
     plot_records_per_entity,
 )
+from propensity.eda.visualization.transaction import plot_return_interval_distribution
 
 __all__ = [
     "ActivityCoverage",
@@ -20,4 +21,5 @@ __all__ = [
     "plot_missing_values",
     "plot_records_over_time",
     "plot_records_per_entity",
+    "plot_return_interval_distribution",
 ]
