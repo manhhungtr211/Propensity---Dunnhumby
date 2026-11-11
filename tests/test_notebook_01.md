@@ -110,20 +110,15 @@ như một dãy số liên tục.
 - kiểm tra metadata/override thừa, thiếu, trùng;
 - categorical frequency table (sẽ bổ sung khi làm nhóm categorical).
 
-## Phần mở rộng: technical EDA theo grain
+## Ranh giới với behavioral EDA
 
-Notebook 01 còn phải gọi `build_transaction_technical_report()` để tạo bằng chứng
-ở đúng grain thay vì chỉ mô tả product-line:
+Notebook 01 dừng ở feature-level profiling. Technical EDA sau khi đổi grain
+được tách sang:
 
-- top frequency của `household_key`, `BASKET_ID`, `PRODUCT_ID`, `STORE_ID`;
-- activity theo `DAY` và `WEEK_NO`;
-- descriptive statistics sau khi aggregate lên basket;
-- descriptive statistics sau khi aggregate lên household;
-- phân phối khoảng cách giữa hai active days liên tiếp của household;
-- một số quan hệ Pearson chọn lọc, luôn ghi kèm grain.
+- `03_transaction_behavior.ipynb`: identifier concentration, basket,
+  household transaction metrics, store/discount và correlation chọn lọc;
+- `04_temporal_household_behavior.ipynb`: activity theo `DAY`/`WEEK_NO`,
+  active periods, household span và purchase intervals.
 
 Khoảng quay lại phải dùng distinct `(household_key, DAY)`. Nhiều basket trong
 cùng ngày không được tạo khoảng cách bằng 0.
-
-Trend, seasonality, product preference và promotion insight thuộc notebook
-business riêng, không nằm trong notebook technical profiling này.

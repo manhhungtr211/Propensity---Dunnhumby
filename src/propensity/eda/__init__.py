@@ -44,6 +44,10 @@ from propensity.eda.transaction import (
     summarize_household_distributions,
     summarize_period_activity,
 )
+from propensity.eda.transaction_behavior import (
+    TransactionBehaviorTables,
+    build_transaction_behavior_tables,
+)
 from propensity.eda.transaction_models import (
     TransactionProfileConfig,
     TransactionTechnicalReport,
@@ -66,11 +70,13 @@ __all__ = [
     "TableOverview",
     "TemporalReport",
     "TransactionProfileConfig",
+    "TransactionBehaviorTables",
     "TransactionTechnicalReport",
     "build_feature_catalog",
     "build_feature_understanding",
     "build_table_inventory",
     "build_transaction_technical_report",
+    "build_transaction_behavior_tables",
     "describe_entities",
     "describe_quality",
     "describe_temporal",
