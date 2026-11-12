@@ -10,6 +10,8 @@ import polars as pl
 from propensity.eda.transaction_models import TransactionProfileConfig
 
 CATEGORY_COLUMN: Final = "DEPARTMENT"
+CATEGORY_OTHER_LABEL: Final = "Other"
+CATEGORY_OTHER_THRESHOLD: Final = 0.10
 COUPON_COLUMN: Final = "COUPON_DISC"
 COUPON_MATCH_COLUMN: Final = "COUPON_MATCH_DISC"
 RETAIL_DISCOUNT_COLUMN: Final = "RETAIL_DISC"
@@ -21,10 +23,21 @@ class TransactionBehaviorTables:
 
     baskets: pl.DataFrame
     households: pl.DataFrame
+    category_penetration: pl.DataFrame
 
 
 def _discount_amount(column: str) -> pl.Expr:
     return (-pl.col(column).fill_null(0.0)).clip(lower_bound=0.0)
+
+
+def _product_categories(
+    products: pl.LazyFrame,
+    config: TransactionProfileConfig,
+) -> pl.LazyFrame:
+    return products.select(
+        config.product_col,
+        pl.col(CATEGORY_COLUMN).str.strip_chars().alias("category"),
+    ).unique(subset=[config.product_col])
 
 
 def _basket_summary(
@@ -32,10 +45,7 @@ def _basket_summary(
     products: pl.LazyFrame,
     config: TransactionProfileConfig,
 ) -> pl.LazyFrame:
-    product_categories = products.select(
-        config.product_col,
-        pl.col(CATEGORY_COLUMN).alias("category"),
-    ).unique(subset=[config.product_col])
+    product_categories = _product_categories(products, config)
     lines = transactions.join(
         product_categories,
         on=config.product_col,
@@ -115,10 +125,7 @@ def _household_summary(
         .group_by(config.entity_col)
         .agg(pl.col("store_baskets").max().alias("primary_store_baskets"))
     )
-    product_categories = products.select(
-        config.product_col,
-        pl.col(CATEGORY_COLUMN).alias("category"),
-    ).unique(subset=[config.product_col])
+    product_categories = _product_categories(products, config)
     diversity = (
         transactions.select(config.entity_col, config.product_col)
         .unique()
@@ -141,6 +148,55 @@ def _household_summary(
     )
 
 
+def _category_penetration(
+    transactions: pl.LazyFrame,
+    products: pl.LazyFrame,
+    config: TransactionProfileConfig,
+) -> pl.LazyFrame:
+    category_baskets = (
+        transactions.select(config.basket_col, config.product_col)
+        .join(_product_categories(products, config), on=config.product_col, how="left")
+        .filter(pl.col("category").is_not_null() & (pl.col("category") != ""))
+        .select(config.basket_col, "category")
+        .unique()
+    )
+    total = transactions.select(
+        pl.col(config.basket_col).n_unique().alias("total_baskets")
+    )
+    category_rates = (
+        category_baskets.group_by("category")
+        .agg(pl.len().alias("basket_count"))
+        .join(total, how="cross")
+        .with_columns(
+            (pl.col("basket_count") / pl.col("total_baskets")).alias("basket_share")
+        )
+    )
+    grouped_baskets = (
+        category_baskets.join(
+            category_rates.select("category", "basket_share"),
+            on="category",
+            how="left",
+        )
+        .with_columns(
+            pl.when(pl.col("basket_share") < CATEGORY_OTHER_THRESHOLD)
+            .then(pl.lit(CATEGORY_OTHER_LABEL))
+            .otherwise(pl.col("category"))
+            .alias("category_group")
+        )
+        .select(config.basket_col, pl.col("category_group").alias("category"))
+        .unique()
+    )
+    return (
+        grouped_baskets.group_by("category")
+        .agg(pl.len().alias("basket_count"))
+        .join(total, how="cross")
+        .with_columns(
+            (pl.col("basket_count") / pl.col("total_baskets")).alias("basket_share")
+        )
+        .sort("basket_share", descending=True)
+    )
+
+
 def build_transaction_behavior_tables(
     transactions: pl.LazyFrame,
     products: pl.LazyFrame,
@@ -152,4 +208,7 @@ def build_transaction_behavior_tables(
     return TransactionBehaviorTables(
         baskets=baskets.sort(config.basket_col).collect(),
         households=households.collect(),
+        category_penetration=_category_penetration(
+            transactions, products, config
+        ).collect(),
     )

@@ -5,14 +5,22 @@ from __future__ import annotations
 import numpy as np
 import polars as pl
 from matplotlib.axes import Axes
+from matplotlib.colors import LinearSegmentedColormap
 
 from propensity.eda.visualization.plots import PlotInputError
 
-GREEN = "#2F6B4F"
-ORANGE = "#D97706"
-BLUE = "#2563EB"
-PURPLE = "#7C3AED"
-GRAY = "#6B7280"
+BASE = "#9CB8C8"
+BASE_DARK = "#3F657A"
+BASE_LIGHT = "#DCE8EE"
+HIGHLIGHT = "#D97706"
+HIGHLIGHT_DARK = "#9A4B0A"
+REFERENCE = "#7B8794"
+INK = "#1F2937"
+DENSITY_CMAP = "Blues"
+CORRELATION_CMAP = LinearSegmentedColormap.from_list(
+    "transaction_behavior_diverging", (BASE_DARK, "#F7F7F5", HIGHLIGHT_DARK)
+)
+PATTERN_COLORS = (REFERENCE, "#E8B786", BASE_DARK, HIGHLIGHT)
 
 
 def require_columns(frame: pl.DataFrame, required: tuple[str, ...]) -> None:
@@ -30,5 +38,5 @@ def numeric_values(frame: pl.DataFrame, column: str) -> np.ndarray:
 
 def finish_axis(axis: Axes) -> None:
     """Apply the shared minimal visual style."""
-    axis.grid(axis="y", color="#D1D5DB", linewidth=0.8, alpha=0.6)
+    axis.grid(axis="y", color=BASE_LIGHT, linewidth=0.8, alpha=0.7)
     axis.spines[["top", "right"]].set_visible(False)

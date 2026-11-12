@@ -9,11 +9,14 @@ from matplotlib.figure import Figure
 from matplotlib.ticker import PercentFormatter
 
 from propensity.eda.visualization.transaction_behavior_common import (
-    BLUE,
-    GRAY,
-    GREEN,
-    ORANGE,
-    PURPLE,
+    BASE,
+    BASE_DARK,
+    BASE_LIGHT,
+    CORRELATION_CMAP,
+    DENSITY_CMAP,
+    HIGHLIGHT,
+    INK,
+    PATTERN_COLORS,
     finish_axis,
     numeric_values,
     require_columns,
@@ -32,13 +35,13 @@ def plot_store_usage(households: pl.DataFrame) -> Figure:
     axes[0].hist(
         stores,
         bins=np.arange(0.5, stores.max() + 1.5),
-        color=GREEN,
+        color=BASE,
         rwidth=0.9,
     )
     axes[0].set(
         title="Store breadth", xlabel="Số store distinct", ylabel="Số household"
     )
-    axes[1].hist(share, bins=np.linspace(0, 1, 26), color=PURPLE)
+    axes[1].hist(share, bins=np.linspace(0, 1, 26), color=BASE)
     axes[1].xaxis.set_major_formatter(PercentFormatter(1))
     axes[1].set(
         title="Mức tập trung tại primary store",
@@ -50,7 +53,7 @@ def plot_store_usage(households: pl.DataFrame) -> Figure:
         households["primary_store_share"].to_numpy(),
         s=14,
         alpha=0.35,
-        color=BLUE,
+        color=BASE_DARK,
         edgecolors="none",
     )
     axes[2].set_xscale("log")
@@ -88,7 +91,7 @@ def plot_transaction_discount_usage(
     )
 
     figure, axes = plt.subplots(1, 3, figsize=(15, 4.8), constrained_layout=True)
-    axes[0].hist(rates, bins=np.linspace(0, 1, 26), color=GREEN)
+    axes[0].hist(rates, bins=np.linspace(0, 1, 26), color=BASE)
     axes[0].xaxis.set_major_formatter(PercentFormatter(1))
     axes[0].set(
         title="Discount incidence theo household",
@@ -100,16 +103,16 @@ def plot_transaction_discount_usage(
         tick_labels=["Không discount", "Có discount"],
         showfliers=False,
         patch_artist=True,
-        boxprops={"facecolor": "#D1FAE5"},
-        medianprops={"color": ORANGE, "linewidth": 2},
+        boxprops={"facecolor": BASE_LIGHT},
+        medianprops={"color": HIGHLIGHT, "linewidth": 2},
     )
     axes[1].set(title="Basket value theo discount usage", ylabel="Customer spend")
-    axes[2].hexbin(
+    density = axes[2].hexbin(
         relation["discount_rate"].to_numpy(),
         relation["customer_spend"].to_numpy(),
         gridsize=30,
         mincnt=1,
-        cmap="Purples",
+        cmap=DENSITY_CMAP,
         bins="log",
     )
     axes[2].xaxis.set_major_formatter(PercentFormatter(1))
@@ -118,11 +121,10 @@ def plot_transaction_discount_usage(
         xlabel="Discount rate",
         ylabel="Customer spend (đến p99)",
     )
+    figure.colorbar(density, ax=axes[2], label="Số basket trong mỗi ô (log scale)")
     for axis in axes:
         finish_axis(axis)
-    figure.suptitle(
-        "Transaction-level discount usage — mô tả, không suy luận causal", fontsize=16
-    )
+    figure.suptitle("Transaction-level discount usage — descriptive only")
     return figure
 
 
@@ -158,7 +160,7 @@ def plot_cross_behavior(households: pl.DataFrame) -> Figure:
         "Discounted-basket rate",
     )
     figure, axis = plt.subplots(figsize=(9, 7.5), constrained_layout=True)
-    image = axis.imshow(correlation, vmin=-1, vmax=1, cmap="RdBu_r")
+    image = axis.imshow(correlation, vmin=-1, vmax=1, cmap=CORRELATION_CMAP)
     axis.set_xticks(range(len(labels)), labels, rotation=40, ha="right")
     axis.set_yticks(range(len(labels)), labels)
     for row in range(len(labels)):
@@ -169,7 +171,7 @@ def plot_cross_behavior(households: pl.DataFrame) -> Figure:
                 f"{correlation[row, column]:.2f}",
                 ha="center",
                 va="center",
-                color="white" if abs(correlation[row, column]) > 0.55 else "#111827",
+                color="white" if abs(correlation[row, column]) > 0.55 else INK,
                 fontsize=9,
             )
     figure.colorbar(image, ax=axis, label="Spearman correlation", shrink=0.8)
@@ -178,14 +180,10 @@ def plot_cross_behavior(households: pl.DataFrame) -> Figure:
 
 
 def plot_behavioral_patterns(households: pl.DataFrame) -> Figure:
-    """Create descriptive frequency-value quadrants and compare their spending."""
-    require_columns(
-        households,
-        ("basket_count", "avg_basket_value", "total_spend"),
-    )
-    valid = households.filter(
-        (pl.col("total_spend") > 0) & pl.col("avg_basket_value").is_not_null()
-    )
+    """Create frequency-value quadrants and compare their discount reliance."""
+    required = ("basket_count", "avg_basket_value", "discounted_basket_rate")
+    require_columns(households, required)
+    valid = households.filter(pl.col("avg_basket_value").is_not_null())
     frequency_cut = valid["basket_count"].median()
     value_cut = valid["avg_basket_value"].median()
     patterned = valid.with_columns(
@@ -208,11 +206,10 @@ def plot_behavioral_patterns(households: pl.DataFrame) -> Figure:
         "Frequent small-basket",
         "Frequent high-value",
     )
-    colors = (GRAY, ORANGE, BLUE, GREEN)
     figure, (scatter_axis, box_axis) = plt.subplots(
         1, 2, figsize=(13, 5.5), constrained_layout=True
     )
-    for label, color in zip(labels, colors, strict=True):
+    for label, color in zip(labels, PATTERN_COLORS, strict=True):
         group = patterned.filter(pl.col("pattern") == label)
         scatter_axis.scatter(
             group["basket_count"].to_numpy(),
@@ -223,40 +220,55 @@ def plot_behavioral_patterns(households: pl.DataFrame) -> Figure:
             label=label,
             edgecolors="none",
         )
-    scatter_axis.axvline(frequency_cut, color="#111827", linestyle="--")
-    scatter_axis.axhline(value_cut, color="#111827", linestyle="--")
-    scatter_axis.set_xscale("log")
-    scatter_axis.set_yscale("log")
+    scatter_axis.axvline(frequency_cut, color=INK, linestyle="--")
+    scatter_axis.axhline(value_cut, color=INK, linestyle="--")
     scatter_axis.set(
+        xscale="log",
+        yscale="log",
         title="Bốn pattern frequency × basket value",
         xlabel="Basket count (log)",
         ylabel="Average basket value (log)",
     )
     scatter_axis.legend(frameon=False, fontsize=8)
-    spend_groups = [
-        patterned.filter(pl.col("pattern") == label)["total_spend"].to_numpy()
-        for label in labels
-    ]
-    box_axis.boxplot(
-        spend_groups,
-        tick_labels=[
-            "Low\nengagement",
-            "Stock-up",
-            "Frequent\nsmall",
-            "Frequent\nhigh",
-        ],
+    short_labels = (
+        "Low\nengagement",
+        "Stock-up",
+        "Frequent\nsmall",
+        "Frequent\nhigh",
+    )
+    box_items = []
+    for label, short_label, color in zip(
+        labels, short_labels, PATTERN_COLORS, strict=True
+    ):
+        values = patterned.filter(pl.col("pattern") == label)[
+            "discounted_basket_rate"
+        ].to_numpy()
+        median_val = float(np.nanmedian(values)) if len(values) > 0 else 0.0
+        box_items.append((median_val, values, short_label, color))
+
+    # Sort theo median tăng dần của tỷ lệ discount
+    box_items.sort(key=lambda item: item[0])
+
+    discount_groups = [item[1] for item in box_items]
+    sorted_tick_labels = [item[2] for item in box_items]
+    sorted_colors = [item[3] for item in box_items]
+
+    boxplot = box_axis.boxplot(
+        discount_groups,
+        tick_labels=sorted_tick_labels,
         showfliers=False,
         patch_artist=True,
-        medianprops={"color": "#111827", "linewidth": 2},
+        medianprops={"color": INK, "linewidth": 2},
     )
-    box_axis.set_yscale("log")
+    for patch, color in zip(boxplot["boxes"], sorted_colors, strict=True):
+        patch.set_facecolor(color)
+    box_axis.yaxis.set_major_formatter(PercentFormatter(1))
     box_axis.set(
-        title="Spending khác nhau giữa các pattern",
-        ylabel="Total spend (log)",
+        title="Discount usage theo pattern",
+        ylabel="Tỷ lệ basket có discount",
+        ylim=(0, 1.02),
     )
     finish_axis(scatter_axis)
     finish_axis(box_axis)
-    figure.suptitle(
-        "Behavioral patterns mô tả — chưa phải segmentation cuối cùng", fontsize=16
-    )
+    figure.suptitle("Behavioral patterns và discount usage", fontsize=16)
     return figure

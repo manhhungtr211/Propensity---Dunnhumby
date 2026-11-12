@@ -95,13 +95,63 @@ def test_behavior_tables_ignore_quantity_for_basket_size(
     assert basket["product_count"] == 2
 
 
+def test_category_penetration_counts_each_basket_once_per_department(
+    behavior_tables: TransactionBehaviorTables,
+) -> None:
+    # Given / When
+    result = behavior_tables.category_penetration
+
+    # Then
+    shares = dict(zip(result["category"], result["basket_share"], strict=True))
+    assert shares == pytest.approx({"GROCERY": 0.5, "DRUG GM": 0.25, "PRODUCE": 0.25})
+
+
+def test_category_penetration_groups_low_share_departments_by_basket_union() -> None:
+    # Given
+    transactions = pl.LazyFrame(
+        {
+            "household_key": [*range(1, 12), 11],
+            "BASKET_ID": [*range(100, 111), 110],
+            "DAY": [1] * 12,
+            "WEEK_NO": [1] * 12,
+            "PRODUCT_ID": [*([10] * 10), 20, 30],
+            "STORE_ID": [7] * 12,
+            "QUANTITY": [1] * 12,
+            "SALES_VALUE": [1.0] * 12,
+            "RETAIL_DISC": [0.0] * 12,
+            "COUPON_DISC": [0.0] * 12,
+            "COUPON_MATCH_DISC": [0.0] * 12,
+        }
+    )
+    products = pl.LazyFrame(
+        {
+            "PRODUCT_ID": [10, 20, 30],
+            "DEPARTMENT": ["GROCERY", "FLORAL", "SEAFOOD"],
+        }
+    )
+
+    # When
+    result = build_transaction_behavior_tables(
+        transactions,
+        products,
+        TEST_CONFIG,
+    ).category_penetration
+
+    # Then
+    shares = dict(zip(result["category"], result["basket_share"], strict=True))
+    assert shares == pytest.approx({"GROCERY": 10 / 11, "Other": 1 / 11})
+
+
 def test_notebook_03_plot_functions_return_expected_panels(
     behavior_tables: TransactionBehaviorTables,
 ) -> None:
     # Given / When
     figures: tuple[Figure, ...] = (
         plot_purchase_frequency(behavior_tables.households),
-        plot_basket_size_value_structure(behavior_tables.baskets),
+        plot_basket_size_value_structure(
+            behavior_tables.baskets,
+            behavior_tables.category_penetration,
+        ),
         plot_household_spending(behavior_tables.households),
         plot_store_usage(behavior_tables.households),
         plot_transaction_discount_usage(
@@ -113,4 +163,4 @@ def test_notebook_03_plot_functions_return_expected_panels(
     )
 
     # Then
-    assert [len(figure.axes) for figure in figures] == [2, 4, 3, 3, 3, 2, 2]
+    assert [len(figure.axes) for figure in figures] == [2, 4, 3, 3, 4, 2, 2]
