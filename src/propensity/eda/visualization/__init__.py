@@ -11,6 +11,20 @@ from propensity.eda.visualization.plots import (
     plot_records_over_time,
     plot_records_per_entity,
 )
+from propensity.eda.visualization.temporal_activity_coverage import (
+    plot_historical_activity_coverage,
+)
+from propensity.eda.visualization.temporal_behavior_shift import (
+    plot_household_behavior_shift,
+)
+from propensity.eda.visualization.temporal_household import (
+    plot_household_interpurchase_dynamics,
+    plot_last_purchase_recency,
+    plot_lifecycle_coverage_exposure,
+)
+from propensity.eda.visualization.temporal_household_trends import (
+    plot_household_behavior_change,
+)
 from propensity.eda.visualization.transaction import plot_return_interval_distribution
 from propensity.eda.visualization.transaction_behavior_overview import (
     plot_basket_size_value_structure,
@@ -32,7 +46,13 @@ __all__ = [
     "plot_behavioral_patterns",
     "plot_cross_behavior",
     "plot_entity_time_matrix",
+    "plot_historical_activity_coverage",
+    "plot_household_behavior_change",
+    "plot_household_behavior_shift",
+    "plot_household_interpurchase_dynamics",
     "plot_household_spending",
+    "plot_last_purchase_recency",
+    "plot_lifecycle_coverage_exposure",
     "plot_missing_values",
     "plot_purchase_frequency",
     "plot_records_over_time",

@@ -36,6 +36,17 @@ from propensity.eda.quality import (
     inspect_value_quality,
 )
 from propensity.eda.temporal import TemporalReport, describe_temporal
+from propensity.eda.temporal_activity_coverage import (
+    profile_historical_activity_coverage,
+)
+from propensity.eda.temporal_behavior_shift import build_household_behavior_shift
+from propensity.eda.temporal_household_behavior import (
+    build_household_interpurchase_features,
+    build_household_lifecycle,
+)
+from propensity.eda.temporal_household_trends import (
+    build_household_rolling_windows,
+)
 from propensity.eda.transaction import (
     build_transaction_technical_report,
     profile_identifier_frequencies,
@@ -74,6 +85,10 @@ __all__ = [
     "TransactionTechnicalReport",
     "build_feature_catalog",
     "build_feature_understanding",
+    "build_household_behavior_shift",
+    "build_household_interpurchase_features",
+    "build_household_lifecycle",
+    "build_household_rolling_windows",
     "build_table_inventory",
     "build_transaction_behavior_tables",
     "build_transaction_technical_report",
@@ -88,6 +103,7 @@ __all__ = [
     "profile_causal_data",
     "profile_coupon_mappings",
     "profile_coupon_redemptions",
+    "profile_historical_activity_coverage",
     "profile_household_demographics",
     "profile_identifier_frequencies",
     "profile_numeric_features",
