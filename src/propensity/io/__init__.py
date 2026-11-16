@@ -1,5 +1,5 @@
-"""Lazy data-source readers."""
+"""Pandas data-source readers."""
 
-from propensity.io.csv import scan_csv
+from propensity.io.csv import read_csv
 
-__all__ = ["scan_csv"]
+__all__ = ["read_csv"]

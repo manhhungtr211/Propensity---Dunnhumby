@@ -1,13 +1,11 @@
-"""Semantic contracts that physical DataFrame dtypes cannot express."""
+"""Small semantic configuration for pandas datasets."""
 
 from __future__ import annotations
 
-from collections.abc import Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import StrEnum, unique
-from types import MappingProxyType
 
-import polars as pl
+import pandas as pd
 
 from propensity.config import DEFAULT_NA_TOKENS
 
@@ -27,11 +25,14 @@ class ColumnRole(StrEnum):
     OTHER = "other"
 
 
-@dataclass(frozen=True, slots=True)
 class DatasetSpecError(ValueError):
     """Raised when a dataset specification is internally inconsistent."""
 
-    reason: str
+    __slots__ = ("reason",)
+
+    def __init__(self, reason: str) -> None:
+        super().__init__(reason)
+        self.reason = reason
 
     def __str__(self) -> str:
         return self.reason
@@ -39,7 +40,7 @@ class DatasetSpecError(ValueError):
 
 @dataclass(frozen=True, slots=True)
 class DatasetSpec:
-    """Semantic dataset contract layered on top of physical Polars dtypes."""
+    """Columns needed to load and interpret one pandas dataset."""
 
     name: str
     entity_col: str | None = None
@@ -47,7 +48,8 @@ class DatasetSpec:
     target_col: str | None = None
     time_grain: str | None = None
     grain_cols: tuple[str, ...] = ()
-    role_overrides: Mapping[str, ColumnRole] = field(default_factory=dict)
+    identifier_cols: tuple[str, ...] = ()
+    datetime_cols: tuple[str, ...] = ()
     required_cols: tuple[str, ...] = ()
     na_tokens: tuple[str, ...] = DEFAULT_NA_TOKENS
 
@@ -58,11 +60,10 @@ class DatasetSpec:
             raise DatasetSpecError("time_grain yêu cầu time_col")
         if any(not column.strip() for column in self.grain_cols):
             raise DatasetSpecError("grain_cols không được chứa tên cột rỗng")
-        object.__setattr__(
-            self,
-            "role_overrides",
-            MappingProxyType(dict(self.role_overrides)),
-        )
+        if any(not column.strip() for column in self.identifier_cols):
+            raise DatasetSpecError("identifier_cols không được chứa tên cột rỗng")
+        if any(not column.strip() for column in self.datetime_cols):
+            raise DatasetSpecError("datetime_cols không được chứa tên cột rỗng")
 
     @property
     def required_columns(self) -> tuple[str, ...]:
@@ -75,15 +76,16 @@ class DatasetSpec:
                 (
                     *semantic_columns,
                     *self.grain_cols,
+                    *self.identifier_cols,
+                    *self.datetime_cols,
                     *self.required_cols,
                 )
             )
         )
 
-    def validate(self, lf: pl.LazyFrame) -> None:
+    def validate(self, frame: pd.DataFrame) -> None:
         """Raise when a required raw column is absent from the dataset."""
-        schema = lf.collect_schema()
-        available = set(schema.names())
+        available = set(frame.columns)
         missing = [
             column for column in self.required_columns if column not in available
         ]

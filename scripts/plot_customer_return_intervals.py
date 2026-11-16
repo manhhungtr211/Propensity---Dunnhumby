@@ -3,7 +3,7 @@
 # requires-python = ">=3.11"
 # dependencies = [
 #     "matplotlib>=3.8",
-#     "polars>=1.0",
+#     "pandas>=2.2",
 # ]
 # ///
 
@@ -25,8 +25,7 @@ from typing import Final
 
 import matplotlib
 import matplotlib.pyplot as plt
-import polars as pl
-
+import pandas as pd
 from propensity.eda.dunnhumby import DUNNHUMBY_TRANSACTION_PROFILE_CONFIG
 from propensity.eda.transaction import profile_return_intervals
 from propensity.eda.visualization import plot_return_interval_distribution
@@ -48,7 +47,7 @@ def main() -> None:
     """Create the customer return-interval distribution chart."""
     matplotlib.rcParams["font.family"] = ["DejaVu Sans"]
     matplotlib.rcParams["axes.unicode_minus"] = False
-    transactions = pl.scan_csv(TRANSACTION_PATH)
+    transactions = pd.read_csv(TRANSACTION_PATH)
     distribution = profile_return_intervals(
         transactions,
         DUNNHUMBY_TRANSACTION_PROFILE_CONFIG,

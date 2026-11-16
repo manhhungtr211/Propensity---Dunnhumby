@@ -1,22 +1,31 @@
-"""CSV input boundary for lazy Polars pipelines."""
+"""CSV input boundary for pandas pipelines."""
 
 from __future__ import annotations
 
-from collections.abc import Mapping
 from pathlib import Path
 
-import polars as pl
+import pandas as pd
+
+from propensity.schema.spec import DatasetSpec
 
 
-def scan_csv(
+def read_csv(
     path: str | Path,
     *,
-    schema_overrides: Mapping[str, pl.DataType] | None = None,
-) -> pl.LazyFrame:
-    """Return a lazy CSV scan for one existing local file."""
+    spec: DatasetSpec | None = None,
+) -> pd.DataFrame:
+    """Load one CSV and apply the dataset's simple semantic configuration."""
     csv_path = Path(path)
     if not csv_path.is_file():
         raise FileNotFoundError(csv_path)
 
-    overrides = None if schema_overrides is None else dict(schema_overrides)
-    return pl.scan_csv(csv_path, schema_overrides=overrides)
+    dtype = None
+    parse_dates = None
+    if spec is not None:
+        dtype = {column: "Int64" for column in spec.identifier_cols}
+        parse_dates = list(spec.datetime_cols) or None
+
+    frame = pd.read_csv(csv_path, dtype=dtype, parse_dates=parse_dates)
+    if spec is not None:
+        spec.validate(frame)
+    return frame
