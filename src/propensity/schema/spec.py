@@ -52,18 +52,59 @@ class DatasetSpec:
     datetime_cols: tuple[str, ...] = ()
     required_cols: tuple[str, ...] = ()
     na_tokens: tuple[str, ...] = DEFAULT_NA_TOKENS
+    string_cols: tuple[str, ...] = ()
+    ordinal_time_cols: tuple[str, ...] = ()
+    clock_time_cols: tuple[str, ...] = ()
+    interval_cols: tuple[tuple[str, str], ...] = ()
 
     def __post_init__(self) -> None:
         if self.entity_col is not None and self.entity_col == self.time_col:
             raise DatasetSpecError("entity_col và time_col phải khác nhau")
         if self.time_grain is not None and self.time_col is None:
             raise DatasetSpecError("time_grain yêu cầu time_col")
-        if any(not column.strip() for column in self.grain_cols):
-            raise DatasetSpecError("grain_cols không được chứa tên cột rỗng")
-        if any(not column.strip() for column in self.identifier_cols):
-            raise DatasetSpecError("identifier_cols không được chứa tên cột rỗng")
-        if any(not column.strip() for column in self.datetime_cols):
-            raise DatasetSpecError("datetime_cols không được chứa tên cột rỗng")
+        for field, value in (
+            ("name", self.name),
+            ("entity_col", self.entity_col),
+            ("time_col", self.time_col),
+            ("target_col", self.target_col),
+            ("time_grain", self.time_grain),
+        ):
+            if value is not None and not value.strip():
+                raise DatasetSpecError(f"{field} must not be blank")
+        for field, columns in (
+            ("grain_cols", self.grain_cols),
+            ("identifier_cols", self.identifier_cols),
+            ("datetime_cols", self.datetime_cols),
+            ("required_cols", self.required_cols),
+            ("string_cols", self.string_cols),
+            ("ordinal_time_cols", self.ordinal_time_cols),
+            ("clock_time_cols", self.clock_time_cols),
+        ):
+            if any(not column.strip() for column in columns):
+                raise DatasetSpecError(f"{field} must not contain blank columns")
+            if len(set(columns)) != len(columns):
+                raise DatasetSpecError(f"{field} must not contain duplicate columns")
+        time_encodings = (
+            set(self.datetime_cols),
+            set(self.ordinal_time_cols),
+            set(self.clock_time_cols),
+        )
+        for index, columns in enumerate(time_encodings):
+            for other in time_encodings[index + 1 :]:
+                overlap = columns & other
+                if overlap:
+                    raise DatasetSpecError(
+                        f"Conflicting time encodings: {sorted(overlap)}"
+                    )
+        if set(self.string_cols) & set(self.datetime_cols):
+            raise DatasetSpecError("string_cols and datetime_cols must not overlap")
+        for endpoints in self.interval_cols:
+            if len(endpoints) != 2 or any(not column.strip() for column in endpoints):
+                raise DatasetSpecError("Intervals require two nonblank endpoints")
+            if endpoints[0] == endpoints[1]:
+                raise DatasetSpecError("Interval endpoints must differ")
+        if len(set(self.interval_cols)) != len(self.interval_cols):
+            raise DatasetSpecError("interval_cols must not contain duplicate pairs")
 
     @property
     def required_columns(self) -> tuple[str, ...]:
@@ -78,6 +119,10 @@ class DatasetSpec:
                     *self.grain_cols,
                     *self.identifier_cols,
                     *self.datetime_cols,
+                    *self.string_cols,
+                    *self.ordinal_time_cols,
+                    *self.clock_time_cols,
+                    *(column for pair in self.interval_cols for column in pair),
                     *self.required_cols,
                 )
             )

@@ -23,19 +23,22 @@ def infer_role(
     """Infer one column role, prioritizing business semantics over dtype."""
     if column == spec.entity_col:
         return ColumnRole.ENTITY
-    if column == spec.time_col:
-        return ColumnRole.TIME
     if spec.target_col is not None and column == spec.target_col:
         return ColumnRole.TARGET
 
     if column in spec.identifier_cols:
         return ColumnRole.ID
-    if column in spec.datetime_cols:
+    if column in spec.datetime_cols or ptypes.is_datetime64_any_dtype(dtype):
         return ColumnRole.DATETIME
+    if (
+        column == spec.time_col
+        or column in spec.ordinal_time_cols
+        or column in spec.clock_time_cols
+        or any(column in endpoints for endpoints in spec.interval_cols)
+    ):
+        return ColumnRole.TIME
     if ptypes.is_bool_dtype(dtype):
         return ColumnRole.BOOLEAN
-    if ptypes.is_datetime64_any_dtype(dtype):
-        return ColumnRole.DATETIME
     if ptypes.is_numeric_dtype(dtype):
         return ColumnRole.NUMERIC
     if ptypes.is_string_dtype(dtype) or isinstance(dtype, pd.CategoricalDtype):

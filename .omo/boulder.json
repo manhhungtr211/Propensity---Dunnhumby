@@ -1,0 +1,18 @@
+{
+  "schema_version": 2,
+  "active_work_id": "data-overview-functions",
+  "works": {
+    "data-overview-functions": {
+      "work_id": "data-overview-functions",
+      "active_plan": ".omo/plans/data-overview-functions.md",
+      "plan_name": "data-overview-functions",
+      "session_ids": [
+        "codex:01a1e281-d299-7b73-a2d1-523b311f0269"
+      ],
+      "status": "active",
+      "delivery_mode": "direct",
+      "current_phase": "wave-1",
+      "worktree_path": "V:\\Propensity_VSF\\.omo\\worktrees\\data-overview-functions-wave1"
+    }
+  }
+}
