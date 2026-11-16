@@ -59,6 +59,11 @@ EXPECTED: Final = (
         "string string Int64 Int64 Int64 Float64 Int64 boolean boolean Int64 Int64 Float64",
     ),
     (
+        "numeric_summary",
+        "table column count mean std min p25 median p75 max",
+        "string string Int64 Float64 Float64 Float64 Float64 Float64 Float64 Float64",
+    ),
+    (
         "provenance",
         (
             "table path size_bytes scan_mode chunk_rows exact rows_scanned "

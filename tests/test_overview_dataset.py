@@ -67,7 +67,12 @@ def test_profile_dataset_packages_all_sections_in_one_call() -> None:
     # 6. Quality
     assert len(report.quality_summary) == 10  # 9 cols + 1 table row
 
-    # 7. Provenance
+    # 7. Numeric distribution (df.describe equivalent)
+    assert len(report.numeric_summary) >= 2  # QUANTITY, SALES_VALUE
+    assert "SALES_VALUE" in report.numeric_summary["column"].tolist()
+    assert "QUANTITY" in report.numeric_summary["column"].tolist()
+
+    # 8. Provenance
     assert len(report.provenance) == 1
     assert report.provenance.loc[0, "scan_mode"] == "memory"
     assert bool(report.provenance.loc[0, "exact"]) is True

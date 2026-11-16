@@ -10,6 +10,7 @@ from propensity.overview.models import (
     OverviewReport,
     normalize_result_frame,
 )
+from propensity.overview.numeric import profile_numeric
 from propensity.overview.quality import profile_quality
 from propensity.overview.structure import profile_columns, profile_table_structure
 from propensity.overview.temporal import profile_time_coverage
@@ -24,7 +25,7 @@ def profile_dataset(
     """Run all overview checks on one dataset and return a packaged OverviewReport.
 
     This packages structure, candidate grain, identifiers, time coverage,
-    and basic quality into a unified report object without requiring separate calls.
+    basic quality, and numeric distribution into a unified report object without requiring separate calls.
     """
     name = table_name or spec.name
     spec.validate(frame)
@@ -35,6 +36,7 @@ def profile_dataset(
     grain_summary = profile_candidate_grain(frame, name, spec)
     time_summary = profile_time_coverage(frame, name, spec)
     quality_summary = profile_quality(frame, name, spec)
+    numeric_summary = profile_numeric(frame, name, spec)
 
     provenance_row = pd.DataFrame(
         [
@@ -63,5 +65,6 @@ def profile_dataset(
         grain_summary=grain_summary,
         time_summary=time_summary,
         quality_summary=quality_summary,
+        numeric_summary=numeric_summary,
         provenance=provenance,
     )

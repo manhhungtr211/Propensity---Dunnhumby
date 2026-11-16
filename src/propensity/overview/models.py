@@ -117,6 +117,21 @@ QUALITY_SUMMARY_CONTRACT: Final = ResultContract(
         ("duplicate_pct", "Float64"),
     ),
 )
+NUMERIC_SUMMARY_CONTRACT: Final = ResultContract(
+    "numeric_summary",
+    (
+        ("table", "string"),
+        ("column", "string"),
+        ("count", "Int64"),
+        ("mean", "Float64"),
+        ("std", "Float64"),
+        ("min", "Float64"),
+        ("p25", "Float64"),
+        ("median", "Float64"),
+        ("p75", "Float64"),
+        ("max", "Float64"),
+    ),
+)
 PROVENANCE_CONTRACT: Final = ResultContract(
     "provenance",
     (
@@ -139,6 +154,7 @@ IDENTIFIER_SUMMARY_COLUMNS: Final = IDENTIFIER_SUMMARY_CONTRACT.columns
 GRAIN_SUMMARY_COLUMNS: Final = GRAIN_SUMMARY_CONTRACT.columns
 TIME_SUMMARY_COLUMNS: Final = TIME_SUMMARY_CONTRACT.columns
 QUALITY_SUMMARY_COLUMNS: Final = QUALITY_SUMMARY_CONTRACT.columns
+NUMERIC_SUMMARY_COLUMNS: Final = NUMERIC_SUMMARY_CONTRACT.columns
 PROVENANCE_COLUMNS: Final = PROVENANCE_CONTRACT.columns
 RESULT_CONTRACTS: Final = (
     TABLE_SUMMARY_CONTRACT,
@@ -147,6 +163,7 @@ RESULT_CONTRACTS: Final = (
     GRAIN_SUMMARY_CONTRACT,
     TIME_SUMMARY_CONTRACT,
     QUALITY_SUMMARY_CONTRACT,
+    NUMERIC_SUMMARY_CONTRACT,
     PROVENANCE_CONTRACT,
 )
 
@@ -195,6 +212,9 @@ class OverviewReport:
     )
     quality_summary: pd.DataFrame = field(
         default_factory=partial(empty_result_frame, QUALITY_SUMMARY_CONTRACT)
+    )
+    numeric_summary: pd.DataFrame = field(
+        default_factory=partial(empty_result_frame, NUMERIC_SUMMARY_CONTRACT)
     )
     provenance: pd.DataFrame = field(
         default_factory=partial(empty_result_frame, PROVENANCE_CONTRACT)
