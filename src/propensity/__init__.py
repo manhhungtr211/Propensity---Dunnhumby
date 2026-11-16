@@ -1,5 +1,11 @@
 """Reusable data-understanding tools for propensity projects."""
 
+from propensity.labels import (
+    DEFAULT_PURCHASE_LABEL_SPEC,
+    PurchaseLabelError,
+    PurchaseLabelSpec,
+    build_purchase_labels,
+)
 from propensity.overview import (
     OverviewReport,
     build_dunnhumby_overview,
@@ -8,10 +14,14 @@ from propensity.overview import (
 from propensity.schema import ColumnRole, DatasetSpec, DatasetSpecError
 
 __all__ = [
+    "DEFAULT_PURCHASE_LABEL_SPEC",
     "ColumnRole",
     "DatasetSpec",
     "DatasetSpecError",
     "OverviewReport",
+    "PurchaseLabelError",
+    "PurchaseLabelSpec",
     "build_dunnhumby_overview",
+    "build_purchase_labels",
     "profile_dataset",
 ]

@@ -6,8 +6,9 @@ Phân tích tổng quan thời gian hoạt động của dataset Dunnhumby.
 Hàm public:
   load_temporal_data(data_path)              → raw DataFrame (household_key, BASKET_ID, DAY)
   plot_transactions_over_time(df, path)      → line chart: lượt giao dịch theo tuần
-  plot_household_lifespan(df, path)          → barh: phân bin tuổi thọ HH
+  plot_household_lifespan(df, path)          → histogram: thời gian hoạt động của HH
   plot_cohort_heatmap(df, path)              → heatmap: % cohort hoạt động theo tháng
+  plot_adoption_and_active_rate(df, path)    → line chart: % đã mua & % còn hoạt động theo thời gian
 """
 
 from __future__ import annotations
@@ -249,6 +250,123 @@ def plot_cohort_heatmap(
     _save_fig(fig, Path(output_path))
 
 
+# ── Chart 4: % Người đã mua & % Người còn hoạt động theo thời gian ────────────
+
+def plot_adoption_and_active_rate(
+    df: pd.DataFrame,
+    output_path: Path | str,
+    window_days: int = 90,
+) -> None:
+    """
+    Biểu đồ đường kép (Dual-line chart) theo thời gian:
+      - Đường 1: % Household đã mua (Cumulative Adoption / First-time buyers)
+      - Đường 2: % Household còn hoạt động trong cửa sổ window_days qua (Active Rate / MAU)
+      - Đường 3 (nét đứt): % Household trong thị trường (In-market: first_day <= t <= last_day)
+    """
+    n_total = df["household_key"].nunique()
+
+    first_day = df.groupby("household_key")["DAY"].min()
+    last_day = df.groupby("household_key")["DAY"].max()
+
+    max_day = int(df["DAY"].max())
+    max_week = (max_day - 1) // 7 + 1
+    weeks = list(range(1, max_week + 1))
+
+    # Bảng rút gọn distinct household_key & DAY để tính cửa sổ trượt nhanh
+    hh_days = df[["household_key", "DAY"]].drop_duplicates()
+
+    cum_adopted = []
+    active_rate = []
+    in_market_rate = []
+
+    for w in weeks:
+        day = w * 7
+        # 1. % đã từng mua ít nhất 1 lần
+        pct_adopted = float((first_day <= day).mean() * 100)
+        cum_adopted.append(pct_adopted)
+
+        # 2. % active trong window_days qua [day - window_days, day]
+        n_act = hh_days[(hh_days["DAY"] > day - window_days) & (hh_days["DAY"] <= day)]["household_key"].nunique()
+        active_rate.append(float(n_act / n_total * 100))
+
+        # 3. % in-market (đã bắt đầu và chưa rời đi)
+        pct_in = float(((first_day <= day) & (last_day >= day)).mean() * 100)
+        in_market_rate.append(pct_in)
+
+    fig, ax = plt.subplots(figsize=(12, 5), facecolor="#FFFFFF")
+
+    # Đường 1: % Đã mua (Lũy kế)
+    ax.plot(
+        weeks,
+        cum_adopted,
+        color="#0D47A1",
+        linewidth=2.2,
+        label="% Đã mua sắm (Tích lũy lần đầu)",
+        zorder=5,
+    )
+
+    # Đường 2: % Còn hoạt động (cửa sổ 30 ngày)
+    ax.fill_between(weeks, active_rate, alpha=0.12, color="#42A5F5")
+    ax.plot(
+        weeks,
+        active_rate,
+        color="#1E88E5",
+        linewidth=2.0,
+        label=f"% Còn hoạt động (Active trong {window_days} ngày qua)",
+        zorder=4,
+    )
+
+    # Đường 3: % Chưa rời bỏ (In-market)
+    ax.plot(
+        weeks,
+        in_market_rate,
+        color="#64B5F6",
+        linewidth=1.5,
+        linestyle="--",
+        label="% Chưa rời đi (First day ≤ t ≤ Last day)",
+        zorder=3,
+    )
+
+    # Mốc bão hòa gia nhập (tuần 17 ~ ngày 120, đạt 99%)
+    ax.axvline(x=17, color="#0D47A1", linestyle=":", alpha=0.6, linewidth=1.0)
+    ax.annotate(
+        "Tuần 17 (~4 tháng):\n>99% HH đã gia nhập",
+        xy=(17, 99),
+        xytext=(22, 92),
+        fontsize=8.5,
+        color="#0D47A1",
+        arrowprops={"arrowstyle": "->", "color": "#0D47A1", "lw": 0.8},
+        bbox={"boxstyle": "round,pad=0.3", "fc": "white", "ec": "#0D47A1", "alpha": 0.85, "linewidth": 0.8},
+    )
+
+    # Nhãn tháng trên x-axis (mỗi ~4 tuần)
+    month_ticks = list(range(1, max_week + 1, 4))
+    month_labels = [f"T{(w - 1) // 4 + 1}" for w in month_ticks]
+    ax.set_xticks(month_ticks)
+    ax.set_xticklabels(month_labels, fontsize=8)
+
+    ax.set_title(
+        f"Tỷ lệ % Household Đã Mua & Còn Hoạt Động theo Thời Gian\n"
+        f"(Tổng thể: {n_total:,} households trong suốt 2 năm)",
+        fontsize=12,
+        fontweight="bold",
+        color="#0D47A1",
+        pad=12,
+    )
+    ax.set_xlabel("Thời gian (tháng tương đối)", fontsize=10, color=_BLUE_LINE)
+    ax.set_ylabel("% Tổng số Household", fontsize=10, color=_BLUE_LINE)
+    ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda x, _: f"{x:.0f}%"))
+    ax.set_xlim(1, max_week)
+    ax.set_ylim(0, 108)
+    ax.spines[["top", "right"]].set_visible(False)
+    ax.set_facecolor("#F8FBFF")
+    ax.tick_params(axis="both", labelsize=9)
+    ax.legend(loc="lower left", fontsize=9, framealpha=0.85)
+
+    fig.tight_layout()
+    _save_fig(fig, Path(output_path))
+
+
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 def main() -> None:
@@ -271,6 +389,9 @@ def main() -> None:
 
     print("Chart 3: cohort heatmap …")
     plot_cohort_heatmap(df, out / "chart_temporal_cohort.png")
+
+    print("Chart 4: adoption and active rate …")
+    plot_adoption_and_active_rate(df, out / "chart_temporal_adoption_active.png")
 
     print("Hoàn thành!")
 
