@@ -45,7 +45,7 @@ def test_default_cutoff_grid_runs_from_140_to_700_by_7() -> None:
     assert all(right - left == 7 for left, right in pairwise(cutoffs))
 
 
-def test_label_uses_open_left_closed_right_future_window() -> None:
+def test_label_uses_cutoff_as_first_target_day() -> None:
     # Given
     transactions = _transactions()
 
@@ -56,11 +56,11 @@ def test_label_uses_open_left_closed_right_future_window() -> None:
     cutoff_100 = result.loc[result["cutoff_day"] == 100]
     assert cutoff_100[["household_key", "label"]].values.tolist() == [
         [1, 1],
-        [2, 1],
+        [2, 0],
         [4, 0],
     ]
-    assert cutoff_100["target_start_day"].iat[0] == 101
-    assert cutoff_100["target_end_day"].iat[0] == 107
+    assert cutoff_100["target_start_day"].iat[0] == 100
+    assert cutoff_100["target_end_day"].iat[0] == 106
 
 
 def test_panel_keeps_known_households_and_marks_full_history() -> None:
@@ -72,7 +72,21 @@ def test_panel_keeps_known_households_and_marks_full_history() -> None:
     assert 3 not in cutoff_100["household_key"].tolist()
     household_1 = cutoff_100.loc[cutoff_100["household_key"] == 1].iloc[0]
     assert bool(household_1["has_full_observation_window"])
-    assert household_1["observation_start_day"] == 91
+    assert household_1["observation_start_day"] == 90
+    assert household_1["observation_end_day"] == 99
+
+
+def test_household_first_seen_on_cutoff_is_not_eligible() -> None:
+    # Given
+    transactions = _transactions()
+    transactions.loc[len(transactions)] = [5, 100, 1, 1.0]
+
+    # When
+    result = build_purchase_labels(transactions, _spec())
+
+    # Then
+    cutoff_100 = result.loc[result["cutoff_day"] == 100]
+    assert 5 not in cutoff_100["household_key"].tolist()
 
 
 def test_invalid_purchase_does_not_create_positive_label() -> None:

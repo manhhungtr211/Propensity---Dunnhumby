@@ -14,7 +14,11 @@ class PurchaseLabelError(ValueError):
 
 @dataclass(frozen=True, slots=True)
 class PurchaseLabelSpec:
-    """Observation, prediction-horizon, and cutoff policy."""
+    """Observation, prediction-horizon, and target-start policy.
+
+    A cutoff is the first day of its target window. The observation window ends
+    one day before the cutoff, so the two windows never overlap.
+    """
 
     observation_days: int = 90
     horizon_days: int = 7
@@ -83,7 +87,7 @@ def build_purchase_labels(
         raise PurchaseLabelError("Không có purchase hợp lệ để tạo label")
 
     max_day = int(valid_events["DAY"].max())
-    if spec.last_cutoff_day + spec.horizon_days > max_day:
+    if spec.last_cutoff_day + spec.horizon_days - 1 > max_day:
         raise PurchaseLabelError(
             "Target window cuối vượt quá thời gian quan sát của dữ liệu"
         )
@@ -95,10 +99,12 @@ def build_purchase_labels(
     )
     panels: list[pd.DataFrame] = []
     for cutoff_day in spec.cutoff_days:
-        target_start_day = cutoff_day + 1
-        target_end_day = cutoff_day + spec.horizon_days
+        observation_start_day = cutoff_day - spec.observation_days
+        observation_end_day = cutoff_day - 1
+        target_start_day = cutoff_day
+        target_end_day = cutoff_day + spec.horizon_days - 1
         eligible = first_purchases.loc[
-            first_purchases["first_purchase_day"] <= cutoff_day
+            first_purchases["first_purchase_day"] <= observation_end_day
         ].copy()
         positive_households = valid_events.loc[
             valid_events["DAY"].between(target_start_day, target_end_day),
@@ -108,14 +114,15 @@ def build_purchase_labels(
             eligible["household_key"].isin(positive_households).astype("UInt8")
         )
         eligible["cutoff_day"] = cutoff_day
-        eligible["observation_start_day"] = cutoff_day - spec.observation_days + 1
+        eligible["observation_start_day"] = observation_start_day
+        eligible["observation_end_day"] = observation_end_day
         eligible["target_start_day"] = target_start_day
         eligible["target_end_day"] = target_end_day
         eligible["observation_days"] = spec.observation_days
         eligible["target_horizon_days"] = spec.horizon_days
         eligible["cutoff_step_days"] = spec.cutoff_step_days
         eligible["exposure_days_at_cutoff"] = (
-            cutoff_day - eligible["first_purchase_day"] + 1
+            cutoff_day - eligible["first_purchase_day"]
         )
         eligible["has_full_observation_window"] = (
             eligible["exposure_days_at_cutoff"] >= spec.observation_days
@@ -128,6 +135,7 @@ def build_purchase_labels(
         "first_purchase_day",
         "cutoff_day",
         "observation_start_day",
+        "observation_end_day",
         "target_start_day",
         "target_end_day",
         "observation_days",

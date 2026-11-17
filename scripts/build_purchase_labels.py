@@ -1,4 +1,4 @@
-"""Materialize the T90/H7/step7 household purchase-label panel."""
+"""Materialize labels with T90 before cutoff and H7 starting at cutoff."""
 
 from __future__ import annotations
 

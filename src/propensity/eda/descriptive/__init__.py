@@ -1,5 +1,8 @@
 """Compatibility facade for the responsibility-based EDA modules."""
 
+from propensity.eda.report import EDAReport, build_eda_report
+from propensity.eda.target import TargetReport, describe_target
+
 from propensity.eda import (
     EntityReport,
     GrainReport,
@@ -17,8 +20,6 @@ from propensity.eda import (
     table_overview,
     validate_grain,
 )
-from propensity.eda.report import EDAReport, build_eda_report
-from propensity.eda.target import TargetReport, describe_target
 
 __all__ = [
     "EDAReport",
