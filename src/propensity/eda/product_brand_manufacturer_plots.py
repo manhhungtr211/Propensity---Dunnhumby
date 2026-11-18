@@ -92,8 +92,15 @@ def plot_brand_diversity_boxplots(feature_panel: pd.DataFrame) -> Figure:
             hue_order=[0, 1],
             palette=BOX_PALETTE,
             legend=False,
-            whis=(5, 95),
-            showfliers=False,
+            whis=1.5,
+            showfliers=True,
+            flierprops={
+                "marker": "o",
+                "markersize": 2,
+                "markerfacecolor": "#334155",
+                "markeredgecolor": "none",
+                "alpha": 0.18,
+            },
             ax=axis,
         )
         axis.set_title(titles[feature])

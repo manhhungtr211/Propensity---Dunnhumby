@@ -23,6 +23,7 @@ class DemographicLabelReport:
     """Tables used by the demographic-label analysis notebook."""
 
     label_overview: pd.DataFrame
+    demographic_status_summary: pd.DataFrame
     household_label_overlap: pd.DataFrame
     overall_positive_rate: float
     positive_rate_summary: pd.DataFrame
@@ -83,6 +84,9 @@ def prepare_demographic_label_panel(
     panel[feature_columns] = panel.loc[:, feature_columns].fillna(MISSING_GROUP)
     panel["label"] = panel["label"].astype("int8")
     panel["label_name"] = panel["label"].map(LABEL_NAMES)
+    panel["demographic_status"] = panel["AGE_DESC"].eq(MISSING_GROUP).map(
+        {True: "NO_DEMOGRAPHIC", False: "HAS_DEMOGRAPHIC"}
+    )
     return panel
 
 
@@ -94,6 +98,7 @@ def build_demographic_label_report(panel: pd.DataFrame) -> DemographicLabelRepor
     )
     return DemographicLabelReport(
         label_overview=build_label_overview(panel),
+        demographic_status_summary=build_demographic_status_summary(panel),
         household_label_overlap=build_household_label_overlap(panel),
         overall_positive_rate=float(panel["label"].mean()),
         positive_rate_summary=build_positive_rate_summary(panel),
@@ -115,6 +120,21 @@ def build_label_overview(panel: pd.DataFrame) -> pd.DataFrame:
         .sort_values("label")
     )
     return result.assign(row_share=result["n_rows"] / len(panel)).reset_index(drop=True)
+
+
+def build_demographic_status_summary(panel: pd.DataFrame) -> pd.DataFrame:
+    """Calculate the Negative/Positive composition of demographic coverage groups."""
+    summary = panel.groupby(
+        ["demographic_status", "label", "label_name"],
+        as_index=False,
+    ).agg(
+        n_observations=("household_key", "size"),
+        n_households=("household_key", "nunique"),
+    )
+    summary["within_status_share"] = summary["n_observations"] / summary.groupby(
+        "demographic_status"
+    )["n_observations"].transform("sum")
+    return summary
 
 
 def build_household_label_overlap(panel: pd.DataFrame) -> pd.DataFrame:

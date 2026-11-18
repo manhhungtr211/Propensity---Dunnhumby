@@ -21,6 +21,55 @@ BASELINE_COLOR: Final = "#DC2626"
 LABEL_PALETTE: Final = {"Negative": "#64748B", "Positive": "#F97316"}
 
 
+def plot_demographic_status_stacked_bar(summary: pd.DataFrame) -> Figure:
+    """Plot 100% stacked label composition for demographic coverage groups."""
+    status_order = ["NO_DEMOGRAPHIC", "HAS_DEMOGRAPHIC"]
+    label_order = ["Negative", "Positive"]
+    pivot = (
+        summary.pivot_table(
+            index="demographic_status",
+            columns="label_name",
+            values="within_status_share",
+            fill_value=0,
+        )
+        .reindex(index=status_order, columns=label_order, fill_value=0)
+    )
+    figure, axis = plt.subplots(figsize=(10, 4), layout="constrained")
+    left = pd.Series(0.0, index=pivot.index)
+    for label_name in label_order:
+        values = pivot[label_name]
+        bars = axis.barh(
+            pivot.index,
+            values,
+            left=left,
+            color=LABEL_PALETTE[label_name],
+            label=label_name,
+        )
+        for bar, value in zip(bars, values, strict=True):
+            if value >= 0.02:
+                axis.text(
+                    bar.get_x() + bar.get_width() / 2,
+                    bar.get_y() + bar.get_height() / 2,
+                    f"{value:.1%}",
+                    ha="center",
+                    va="center",
+                    color="white",
+                    fontweight="bold",
+                )
+        left = left + values
+
+    axis.set_xlim(0, 1)
+    axis.invert_yaxis()
+    axis.set_title("Tỷ lệ label theo trạng thái demographic")
+    axis.set_xlabel("Tỷ trọng trong từng nhóm demographic")
+    axis.set_ylabel("")
+    axis.xaxis.set_major_formatter(lambda value, _: f"{value:.0%}")
+    axis.legend(title="Label", frameon=False, loc="lower center", ncol=2)
+    axis.grid(axis="y", visible=False)
+    axis.spines[["top", "right", "left"]].set_visible(False)
+    return figure
+
+
 def plot_label_distributions(
     distribution_summary: pd.DataFrame,
 ) -> tuple[Figure, ...]:

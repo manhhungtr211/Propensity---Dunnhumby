@@ -64,6 +64,11 @@ EXPECTED: Final = (
         "string string Int64 Float64 Float64 Float64 Float64 Float64 Float64 Float64",
     ),
     (
+        "categorical_summary",
+        "table column count n_unique top freq top_pct",
+        "string string Int64 Int64 string Int64 Float64",
+    ),
+    (
         "provenance",
         (
             "table path size_bytes scan_mode chunk_rows exact rows_scanned "

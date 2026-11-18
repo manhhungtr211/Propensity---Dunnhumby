@@ -11,6 +11,7 @@ import pandas as pd
 from propensity.io.csv import read_csv
 from propensity.overview.dataset import profile_dataset
 from propensity.overview.models import (
+    CATEGORICAL_SUMMARY_CONTRACT,
     COLUMN_SUMMARY_CONTRACT,
     GRAIN_SUMMARY_CONTRACT,
     IDENTIFIER_SUMMARY_CONTRACT,
@@ -48,6 +49,7 @@ def build_dunnhumby_overview(
     time_summaries: list[pd.DataFrame] = []
     quality_summaries: list[pd.DataFrame] = []
     numeric_summaries: list[pd.DataFrame] = []
+    categorical_summaries: list[pd.DataFrame] = []
     provenances: list[pd.DataFrame] = []
 
     # Support aliases matching exact file stem names
@@ -99,6 +101,7 @@ def build_dunnhumby_overview(
         time_summaries.append(report.time_summary)
         quality_summaries.append(report.quality_summary)
         numeric_summaries.append(report.numeric_summary)
+        categorical_summaries.append(report.categorical_summary)
         provenances.append(prov)
 
         # Release memory before reading next table
@@ -121,5 +124,8 @@ def build_dunnhumby_overview(
         time_summary=_concat_or_empty(time_summaries, TIME_SUMMARY_CONTRACT),
         quality_summary=_concat_or_empty(quality_summaries, QUALITY_SUMMARY_CONTRACT),
         numeric_summary=_concat_or_empty(numeric_summaries, NUMERIC_SUMMARY_CONTRACT),
+        categorical_summary=_concat_or_empty(
+            categorical_summaries, CATEGORICAL_SUMMARY_CONTRACT
+        ),
         provenance=_concat_or_empty(provenances, PROVENANCE_CONTRACT),
     )

@@ -22,6 +22,11 @@ FEATURE_TITLES: Final[dict[str, str]] = {
     "median_interpurchase_gap_days_90d": "Median interpurchase gap trong 90 ngày",
     "interpurchase_gap_std_days_90d": "Variability của interpurchase gap trong 90 ngày",
 }
+FOCUS_FEATURE_COLUMNS: Final[tuple[str, ...]] = (
+    "days_since_last_purchase",
+    "active_days_90d",
+    "interpurchase_gap_std_days_90d",
+)
 
 
 class TransactionTimeLabelError(ValueError):
@@ -212,3 +217,57 @@ def summarize_transaction_time_by_label(
                 }
             )
     return pd.DataFrame(rows)
+
+
+def build_focus_boxplot_stats(feature_panel: pd.DataFrame) -> pd.DataFrame:
+    """Return quartiles, observed whiskers, and outlier rates for focused plots."""
+    rows: list[dict[str, float | int | str]] = []
+    for feature in FOCUS_FEATURE_COLUMNS:
+        for label in (0, 1):
+            values = feature_panel.loc[
+                feature_panel["label"] == label,
+                feature,
+            ].dropna()
+            p25 = float(values.quantile(0.25))
+            p75 = float(values.quantile(0.75))
+            iqr = p75 - p25
+            lower_fence = p25 - 1.5 * iqr
+            upper_fence = p75 + 1.5 * iqr
+            inlier_mask = values.between(lower_fence, upper_fence)
+            n_outliers = int((~inlier_mask).sum())
+            rows.append(
+                {
+                    "feature": feature,
+                    "label": label,
+                    "n_observations": len(values),
+                    "p25": p25,
+                    "p75": p75,
+                    "lower_whisker": float(values.loc[inlier_mask].min()),
+                    "upper_whisker": float(values.loc[inlier_mask].max()),
+                    "n_outliers": n_outliers,
+                    "outlier_rate": n_outliers / len(values),
+                }
+            )
+    return pd.DataFrame(rows)
+
+
+def build_focus_boxplot_caption(
+    feature_panel: pd.DataFrame,
+    focus_stats: pd.DataFrame,
+) -> str:
+    """Build a dynamic Markdown caption with dataset size and outlier-rate range."""
+    by_feature = focus_stats.groupby("feature", as_index=False).agg(
+        n_observations=("n_observations", "sum"),
+        n_outliers=("n_outliers", "sum"),
+    )
+    by_feature["outlier_rate"] = (
+        by_feature["n_outliers"] / by_feature["n_observations"]
+    )
+    minimum_rate = float(by_feature["outlier_rate"].min())
+    maximum_rate = float(by_feature["outlier_rate"].max())
+    return (
+        f"Tập dữ liệu N = **{len(feature_panel)}**. "
+        "Biểu đồ ẩn các điểm ngoại lai "
+        f"(chiếm khoảng **{minimum_rate:.1%}–{maximum_rate:.1%}** "
+        "số quan sát hợp lệ ở mỗi biến)."
+    )

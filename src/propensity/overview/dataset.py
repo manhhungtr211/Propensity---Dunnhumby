@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import pandas as pd
 
+from propensity.overview.categorical import profile_categorical
 from propensity.overview.keys import profile_candidate_grain, profile_identifiers
 from propensity.overview.models import (
     PROVENANCE_CONTRACT,
@@ -25,7 +26,7 @@ def profile_dataset(
     """Run all overview checks on one dataset and return a packaged OverviewReport.
 
     This packages structure, candidate grain, identifiers, time coverage,
-    basic quality, and numeric distribution into a unified report object without requiring separate calls.
+    basic quality, numeric distribution, and categorical distribution into a unified report object without requiring separate calls.
     """
     name = table_name or spec.name
     spec.validate(frame)
@@ -37,6 +38,7 @@ def profile_dataset(
     time_summary = profile_time_coverage(frame, name, spec)
     quality_summary = profile_quality(frame, name, spec)
     numeric_summary = profile_numeric(frame, name, spec)
+    categorical_summary = profile_categorical(frame, name, spec)
 
     provenance_row = pd.DataFrame(
         [
@@ -66,5 +68,6 @@ def profile_dataset(
         time_summary=time_summary,
         quality_summary=quality_summary,
         numeric_summary=numeric_summary,
+        categorical_summary=categorical_summary,
         provenance=provenance,
     )

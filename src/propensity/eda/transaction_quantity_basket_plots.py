@@ -37,7 +37,15 @@ def plot_quantity_basket_boxplots(feature_panel: pd.DataFrame) -> Figure:
             hue_order=[0, 1],
             palette=LABEL_PALETTE,
             legend=False,
-            showfliers=False,
+            whis=1.5,
+            showfliers=True,
+            flierprops={
+                "marker": "o",
+                "markersize": 2,
+                "markerfacecolor": "#334155",
+                "markeredgecolor": "none",
+                "alpha": 0.18,
+            },
             ax=axis,
         )
         axis.set_title(FEATURE_TITLES[feature])
@@ -50,4 +58,35 @@ def plot_quantity_basket_boxplots(feature_panel: pd.DataFrame) -> Figure:
         "Transaction quantity và basket diversity theo label",
         fontsize=15,
     )
+    return figure
+
+
+def plot_department_breadth_boxplot(feature_panel: pd.DataFrame) -> Figure:
+    """Compare 90-day department breadth between Negative and Positive labels."""
+    figure, axis = plt.subplots(figsize=(7, 5), layout="constrained")
+    sns.boxplot(
+        data=feature_panel,
+        x="label",
+        y="n_departments_90d",
+        order=[0, 1],
+        hue="label",
+        hue_order=[0, 1],
+        palette=LABEL_PALETTE,
+        legend=False,
+        whis=1.5,
+        showfliers=True,
+        flierprops={
+            "marker": "o",
+            "markersize": 2,
+            "markerfacecolor": "#334155",
+            "markeredgecolor": "none",
+            "alpha": 0.18,
+        },
+        ax=axis,
+    )
+    axis.set_title("Số department unique đã mua trong 90 ngày")
+    axis.set_xlabel("Label (0 = Negative, 1 = Positive)")
+    axis.set_ylabel("Số department unique")
+    axis.grid(axis="x", visible=False)
+    axis.spines[["top", "right"]].set_visible(False)
     return figure

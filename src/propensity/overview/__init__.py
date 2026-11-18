@@ -1,10 +1,13 @@
 """Overview package for profiling structure, grain, keys, time, and quality."""
 
+from propensity.overview.categorical import profile_categorical
 from propensity.overview.dataset import profile_dataset
 from propensity.overview.dunnhumby import build_dunnhumby_overview
 from propensity.overview.keys import profile_candidate_grain, profile_identifiers
 from propensity.overview.missing import blank_mask, missing_mask
 from propensity.overview.models import (
+    CATEGORICAL_SUMMARY_COLUMNS,
+    CATEGORICAL_SUMMARY_CONTRACT,
     COLUMN_SUMMARY_COLUMNS,
     COLUMN_SUMMARY_CONTRACT,
     GRAIN_SUMMARY_COLUMNS,
@@ -35,6 +38,8 @@ from propensity.overview.structure import profile_columns, profile_table_structu
 from propensity.overview.temporal import profile_time_coverage
 
 __all__ = [
+    "CATEGORICAL_SUMMARY_COLUMNS",
+    "CATEGORICAL_SUMMARY_CONTRACT",
     "COLUMN_SUMMARY_COLUMNS",
     "COLUMN_SUMMARY_CONTRACT",
     "GRAIN_SUMMARY_COLUMNS",
@@ -63,6 +68,7 @@ __all__ = [
     "preview_dunnhumby_tables",
     "preview_table",
     "profile_candidate_grain",
+    "profile_categorical",
     "profile_columns",
     "profile_dataset",
     "profile_identifiers",

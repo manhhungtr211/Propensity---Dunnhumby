@@ -112,3 +112,11 @@ def test_build_dunnhumby_overview_on_small_tables(tmp_path: Path) -> None:
     assert interval_row["end_column"] == "END_DAY"
     assert interval_row["min"] == 224
     assert interval_row["max"] == 350
+
+    # Categorical summary
+    assert len(report.categorical_summary) == 1
+    cat_row = report.categorical_summary.iloc[0]
+    assert cat_row["table"] == "campaign_desc"
+    assert cat_row["column"] == "DESCRIPTION"
+    assert cat_row["count"] == 2
+    assert cat_row["n_unique"] == 2

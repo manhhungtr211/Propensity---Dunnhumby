@@ -3,7 +3,6 @@
 from pathlib import Path
 
 import pandas as pd
-import pytest
 
 from propensity.overview.preview import preview_dunnhumby_tables, preview_table
 
