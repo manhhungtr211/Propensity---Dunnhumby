@@ -74,7 +74,9 @@ notebooks/figures/
 *.svg
 
 # Internal Analysis Notes & Scratch/Builder Scripts
+docs/*_details.md
 docs/customer_deep_dive_details.md
+docs/customer_label_relation_details.md
 scripts/append_*.py
 scripts/build_*.py
 
