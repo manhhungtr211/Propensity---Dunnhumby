@@ -7,7 +7,9 @@ from pathlib import Path
 
 def test_notebook_00_contains_no_local_functions_or_analytical_logic() -> None:
     # Given
-    nb_path = Path("notebooks/00_data_overview.ipynb")
+    nb_path = Path("draft_notebooks/00_data_overview.ipynb")
+    if not nb_path.exists():
+        nb_path = Path("notebooks/00_data_overview.ipynb")
     assert nb_path.exists(), "Notebook 00_data_overview.ipynb does not exist"
 
     with open(nb_path, encoding="utf-8") as f:

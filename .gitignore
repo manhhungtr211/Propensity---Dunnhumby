@@ -49,3 +49,5 @@ Thumbs.db
 data/raw/*/*
 !data/raw/*/raw.ipynb
 
+*.omo
+.omo/
