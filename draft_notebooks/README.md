@@ -1,6 +1,6 @@
 # Danh mục Notebooks
 ## Note:
-Draf_notebooks là file nháp để đào sâu eda về các khía cạnh, chưa file phải bản final
+Draf_notebooks là file nháp để đào sâu eda về các khía cạnh, chưa phải bản final
 
 | Notebook | Mục đích |
 | :--- | :--- |
