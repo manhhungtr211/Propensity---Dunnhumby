@@ -11,6 +11,7 @@ from propensity.overview import (
     build_dunnhumby_overview,
     profile_dataset,
 )
+from propensity.purchases import PurchaseValidationError, valid_purchase_lines
 from propensity.schema import ColumnRole, DatasetSpec, DatasetSpecError
 
 __all__ = [
@@ -21,7 +22,9 @@ __all__ = [
     "OverviewReport",
     "PurchaseLabelError",
     "PurchaseLabelSpec",
+    "PurchaseValidationError",
     "build_dunnhumby_overview",
     "build_purchase_labels",
     "profile_dataset",
+    "valid_purchase_lines",
 ]

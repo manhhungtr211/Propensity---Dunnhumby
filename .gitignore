@@ -51,3 +51,31 @@ data/raw/*/*
 
 *.omo
 .omo/
+
+# Agent Customizations, Workspaces & Configurations
+.agents/
+.claude/
+.gemini/
+propensity_multi_agent_setup/
+AGENTS.md
+CLAUDE.md
+GEMINI.md
+README_SETUP.md
+docs/AGENT_WORKSPACE.md
+scripts/sync_skills.py
+
+# Generated Figures & Media Artifacts
+figures/
+**/figures/
+notebooks/figures/
+*.png
+*.jpg
+*.jpeg
+*.svg
+
+# Internal Analysis Notes & Scratch/Builder Scripts
+docs/customer_deep_dive_details.md
+scripts/append_*.py
+scripts/build_*.py
+
+

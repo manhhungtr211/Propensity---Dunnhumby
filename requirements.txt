@@ -4,5 +4,7 @@ matplotlib
 seaborn
 scikit-learn
 ipykernel
+nbformat
+nbconvert
 openpyxl
 
