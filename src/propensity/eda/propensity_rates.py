@@ -15,7 +15,7 @@ class FindingThresholds:
 
     min_effect_pp: float = 3.0        # Chênh tối thiểu so với kỳ vọng (pp)
     min_same_sign: float = 0.80       # Cùng dấu ở ≥ 80% cutoff
-    min_row_share: float = 0.05       # Nhóm chiếm ≥ 5% số dòng
+    min_row_share: float = 0.02       # Nhóm chiếm ≥ 2% số dòng
     min_households: int = 50          # Nhóm có ≥ 50 hộ
     min_rows_per_cutoff: int = 20     # Cutoff có nhóm dưới 20 dòng thì không tính vào same_sign
 
@@ -352,6 +352,55 @@ def add_verdicts(
     return out
 
 
+def quantile_bin(
+    s: pd.Series,
+    q: int = 5,
+    null_label: str = "null",
+    prefix: str = "Q",
+) -> pd.Categorical:
+    """Discretize continuous series into quantiles with numerical interval labels and explicit null group.
+
+    Uses pd.qcut(..., duplicates='drop'). When duplicate values exist, fewer than q bins may be produced.
+    Null values are mapped to null_label and placed as the last category.
+    """
+    valid = s.dropna()
+    if valid.empty:
+        return pd.Categorical([null_label] * len(s), categories=[null_label], ordered=True)
+
+    if valid.nunique() == 1:
+        val = valid.iloc[0]
+        label = f"{prefix}1 (={val:.2f})"
+        categories = [label]
+        if s.isna().any():
+            categories.append(null_label)
+        res = s.map({val: label}).fillna(null_label)
+        return pd.Categorical(res, categories=categories, ordered=True)
+
+    _, bins = pd.qcut(valid, q=q, retbins=True, duplicates="drop")
+    k = len(bins) - 1
+    if k <= 1:
+        labels = [f"{prefix}1"]
+    else:
+        labels = []
+        for i in range(k):
+            if i == 0:
+                labels.append(f"{prefix}{i+1} (≤{bins[i+1]:.2f})")
+            elif i == k - 1:
+                labels.append(f"{prefix}{i+1} (>{bins[i]:.2f})")
+            else:
+                labels.append(f"{prefix}{i+1} ({bins[i]:.2f}–{bins[i+1]:.2f})")
+
+    binned = pd.qcut(valid, q=q, labels=labels, duplicates="drop")
+    categories = list(labels)
+    if s.isna().any():
+        categories.append(null_label)
+
+    res = pd.Series(index=s.index, dtype="object")
+    res.loc[valid.index] = binned.astype(str)
+    res = res.fillna(null_label)
+    return pd.Categorical(res, categories=categories, ordered=True)
+
+
 def classify_finding(
     metric_df: pd.DataFrame,
     strata_matrix: pd.DataFrame | None = None,
@@ -362,3 +411,72 @@ def classify_finding(
         classify_finding as _orig_classify_finding,
     )
     return _orig_classify_finding(metric_df, strata_matrix, thresholds)
+
+
+def feature_signal_summary(
+    results: dict[str, pd.DataFrame],
+) -> pd.DataFrame:
+    """Summarize raw vs R x F adjusted signal for candidate features.
+
+    Parameters
+    ----------
+    results : dict[str, pd.DataFrame]
+        Dictionary mapping feature display name to its excess_over_rf table with verdicts.
+
+    Returns
+    -------
+    pd.DataFrame
+        Columns: feature, raw_pp, adj_pp, best_verdict.
+        Sorted descending by raw_pp.
+    """
+    records: list[dict[str, Any]] = []
+
+    for name, df in results.items():
+        if df is None or df.empty:
+            continue
+
+        group_col = df.columns[0]
+        sub = df.copy()
+
+        # Bỏ bin "Không đủ dữ liệu"
+        if "verdict" in sub.columns:
+            sub = sub[sub["verdict"] != "Không đủ dữ liệu"]
+
+        # Bỏ bin null
+        group_vals = sub[group_col].astype(str).str.strip().str.lower()
+        sub = sub[~group_vals.isin(["null", "nan", "none", ""])]
+
+        if sub.empty:
+            continue
+
+        raw_pp = float(sub["raw_diff_pp"].abs().max()) if "raw_diff_pp" in sub.columns else 0.0
+        adj_pp = float(sub["excess_pp"].abs().max()) if "excess_pp" in sub.columns else 0.0
+
+        verdicts = sub["verdict"].tolist() if "verdict" in sub.columns else []
+        if "Insight" in verdicts:
+            best_verdict = "Insight"
+        elif "Đã được R × F giải thích" in verdicts:
+            best_verdict = "Đã được R × F giải thích"
+        elif "Không được ủng hộ" in verdicts:
+            best_verdict = "Không được ủng hộ"
+        elif "Không ổn định" in verdicts:
+            best_verdict = "Không ổn định"
+        elif verdicts:
+            best_verdict = verdicts[0]
+        else:
+            best_verdict = "Không xác định"
+
+        records.append({
+            "feature": name,
+            "raw_pp": raw_pp,
+            "adj_pp": adj_pp,
+            "best_verdict": best_verdict,
+        })
+
+    summary_df = pd.DataFrame(records)
+    if not summary_df.empty:
+        summary_df = summary_df.sort_values("raw_pp", ascending=False).reset_index(drop=True)
+    else:
+        summary_df = pd.DataFrame(columns=["feature", "raw_pp", "adj_pp", "best_verdict"])
+    return summary_df
+

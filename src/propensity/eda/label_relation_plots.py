@@ -8,6 +8,19 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
+from propensity.viz.style import (
+    BG_COLOR,
+    COLOR_PRIMARY,
+    COLOR_SECONDARY,
+    GRAY_LIGHT,
+    GRAY_MUTED,
+    GRAY_NEUTRAL,
+    TEXT_PRIMARY,
+    TEXT_SECONDARY,
+    plot_rate_and_excess,
+    set_style,
+)
+
 
 def plot_rf_heatmap(cells: pd.DataFrame, overall_rate: float) -> plt.Figure:
     """Plot canonical R x F baseline return rate heatmap with sample size annotations.
@@ -156,156 +169,3 @@ def plot_rf_heatmap(cells: pd.DataFrame, overall_rate: float) -> plt.Figure:
 
     return fig
 
-
-def plot_rate_and_excess(
-    table: pd.DataFrame,
-    title: str,
-    order: list[str] | None = None,
-) -> plt.Figure:
-    """Plot 2-panel chart: Upper panel shows observed return rate, expected rate, excess and verdict; Lower panel shows sample share.
-
-    No error bars used; clean, high-contrast visual design.
-    """
-    df = table.copy()
-
-    # Identify the feature group column
-    known_cols = {
-        "n_rows",
-        "n_households",
-        "row_share",
-        "observed",
-        "expected",
-        "excess_pp",
-        "overall_rate",
-        "raw_diff_pp",
-        "same_sign_share",
-        "n_cutoffs_used",
-        "verdict",
-        "verdict_reason",
-    }
-    candidate_cols = [c for c in df.columns if c not in known_cols]
-    if not candidate_cols:
-        raise ValueError("Không tìm thấy cột phân nhóm tính năng trong bảng")
-    group_col = candidate_cols[0]
-
-    # Reorder if specified
-    if order is not None:
-        df[group_col] = pd.Categorical(df[group_col].astype(str), categories=order, ordered=True)
-        df = df.sort_values(group_col).reset_index(drop=True)
-
-    fig, (ax_top, ax_bottom) = plt.subplots(
-        2,
-        1,
-        figsize=(11, 7.0),
-        sharex=True,
-        gridspec_kw={"height_ratios": [3.2, 1.0]},
-        constrained_layout=True,
-    )
-
-    x = np.arange(len(df))
-    bar_width = 0.52
-
-    # Upper Panel: Rates & Expectations
-    observed_pct = df["observed"] * 100.0
-    expected_pct = df["expected"] * 100.0
-    overall_pct = float(df["overall_rate"].iloc[0]) * 100.0
-
-    bars = ax_top.bar(
-        x,
-        observed_pct,
-        width=bar_width,
-        color="#2563EB",
-        edgecolor="#1D4ED8",
-        alpha=0.88,
-        label="Tỷ lệ thực tế (Observed)",
-        zorder=3,
-    )
-
-    # Expected point as diamond scatter
-    ax_top.scatter(
-        x,
-        expected_pct,
-        color="#EF4444",
-        s=80,
-        marker="D",
-        edgecolors="#991B1B",
-        linewidths=1.2,
-        label="Kỳ vọng theo R × F (Expected)",
-        zorder=5,
-    )
-
-    # Overall baseline horizontal line
-    ax_top.axhline(
-        overall_pct,
-        color="#4B5563",
-        linestyle="--",
-        linewidth=1.4,
-        label=f"Baseline chung ({overall_pct:.1f}%)",
-        zorder=2,
-    )
-
-    # Annotate top of bars
-    for i, bar in enumerate(bars):
-        row = df.iloc[i]
-        h = bar.get_height()
-        excess = row["excess_pp"]
-        verdict = row.get("verdict", "")
-        sign = "+" if excess > 0 else ""
-        excess_str = f"{sign}{excess:.1f} pp"
-
-        label_lines = [f"{h:.1f}%", f"Δ: {excess_str}"]
-        if verdict:
-            # Shorten label for neat display
-            short_verdict = verdict.replace("Đã được R × F giải thích", "R×F giải thích")
-            label_lines.append(f"[{short_verdict}]")
-
-        ax_top.text(
-            bar.get_x() + bar.get_width() / 2.0,
-            max(h, expected_pct.iloc[i]) + 2.0,
-            "\n".join(label_lines),
-            ha="center",
-            va="bottom",
-            fontsize=8.5,
-            fontweight="bold",
-            color="#1F2937",
-        )
-
-    ax_top.set_ylabel("Tỷ lệ quay lại 7 ngày (%)", fontsize=10.5, fontweight="bold")
-    ax_top.set_ylim(0, max(100.0, float(max(observed_pct.max(), expected_pct.max())) + 15.0))
-    ax_top.grid(axis="y", linestyle=":", alpha=0.5, zorder=1)
-    ax_top.legend(frameon=True, facecolor="white", edgecolor="#E5E7EB", loc="upper left", fontsize=9)
-    ax_top.set_title(title, fontsize=12, fontweight="bold", pad=10)
-
-    # Lower Panel: Row Share
-    share_pct = df["row_share"] * 100.0
-    share_bars = ax_bottom.bar(
-        x,
-        share_pct,
-        width=bar_width,
-        color="#94A3B8",
-        edgecolor="#64748B",
-        alpha=0.85,
-        zorder=3,
-    )
-
-    for bar, (_, row) in zip(share_bars, df.iterrows()):
-        h = bar.get_height()
-        ax_bottom.text(
-            bar.get_x() + bar.get_width() / 2.0,
-            h + 0.5,
-            f"{h:.1f}%\n({int(row['n_households']):,} hộ)",
-            ha="center",
-            va="bottom",
-            fontsize=8,
-            color="#334155",
-            fontweight="semibold",
-        )
-
-    ax_bottom.set_ylabel("Tỷ trọng (%)", fontsize=10, fontweight="bold")
-    ax_bottom.set_ylim(0, max(30.0, float(share_pct.max()) * 1.35))
-    ax_bottom.grid(axis="y", linestyle=":", alpha=0.5, zorder=1)
-    ax_bottom.set_xticks(x)
-    ax_bottom.set_xticklabels(df[group_col].astype(str), fontsize=9.5, fontweight="semibold")
-    ax_bottom.set_xlabel(f"Phân tầng biến {group_col}", fontsize=10.5, fontweight="bold", labelpad=6)
-
-    return fig

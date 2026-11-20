@@ -68,6 +68,8 @@ scripts/sync_skills.py
 figures/
 **/figures/
 notebooks/figures/
+reports/slides/
+reports/figures/
 *.png
 *.jpg
 *.jpeg

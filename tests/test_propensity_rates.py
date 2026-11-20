@@ -197,6 +197,16 @@ def test_excess_over_rf_calculations() -> None:
     assert np.isclose(g2_row["excess_pp"], 0.0)
 
 
+def test_finding_thresholds_defaults() -> None:
+    """Verify default finding thresholds including min_row_share=0.02."""
+    thr = FindingThresholds()
+    assert thr.min_effect_pp == 3.0
+    assert thr.min_same_sign == 0.80
+    assert thr.min_row_share == 0.02
+    assert thr.min_households == 50
+    assert thr.min_rows_per_cutoff == 20
+
+
 def test_classify_verdict_branches() -> None:
     """Verify all 5 decision branches of classify_verdict."""
     thr = FindingThresholds(
